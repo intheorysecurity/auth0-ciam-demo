@@ -23,8 +23,8 @@ type ConnectionOption = {
 export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
   const router = useRouter()
   const { user, isLoading } = useUser()
-  const [selectedConnection, setSelectedConnection] = useState<string>('') // UI selection (usually connection_id)
-  const [selectedConnectionName, setSelectedConnectionName] = useState<string>('') // Auth0 connection name (best-effort)
+  const [selectedConnection, setSelectedConnection] = useState<string>('') // UI selection (connection_id)
+  const [selectedConnectionName, setSelectedConnectionName] = useState<string>('') // Auth0 connection name
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -66,16 +66,20 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
     setSelectedConnectionName(conn?.name || '')
     setError('')
     
-    // Determine if it's passwordless or database connection
-    if (connectionId.includes('passwordless')) {
-      if (connectionId.includes('email')) {
-        setStep('code')
-      } else if (connectionId.includes('sms')) {
-        setStep('code')
-      }
-    } else {
-      setStep('password')
+    // Determine if it's passwordless or database connection.
+    // Prefer connection name (works for org-enabled connections too), fall back to id heuristics.
+    const connName = conn?.name || ''
+    if (connName === 'email' || connName === 'sms') {
+      setStep('code')
+      return
     }
+
+    if (connectionId.includes('passwordless') && (connectionId.includes('email') || connectionId.includes('sms'))) {
+      setStep('code')
+      return
+    }
+
+    setStep('password')
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -83,11 +87,18 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
     setError('')
 
     try {
+      const resolvedConnectionName =
+        selectedConnectionName || connections.find((c) => c.id === selectedConnection)?.name || ''
+
+      if (!resolvedConnectionName) {
+        setError('Please select an authentication method.')
+        return
+      }
+
       // Build login URL with query parameters
       const params = new URLSearchParams()
-      // Auth0 /authorize expects connection *name*, but our dropdown often stores *id*.
-      // Send best-effort name; server will fall back/resolve if we only have an id.
-      params.set('connection', selectedConnectionName || selectedConnection)
+      // Auth0 /authorize expects connection *name*
+      params.set('connection', resolvedConnectionName)
       
       // Add organization ID if detected (use org_id for Auth0)
       if (orgBranding?.id) {
@@ -95,12 +106,12 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
       }
 
       // Handle different connection types
-      if (selectedConnection.includes('passwordless')) {
+      if (resolvedConnectionName === 'email' || resolvedConnectionName === 'sms' || selectedConnection.includes('passwordless')) {
         if (step === 'code') {
           // For passwordless, we need to send code
-          if (selectedConnection.includes('email') && email) {
+          if ((resolvedConnectionName === 'email' || selectedConnection.includes('email')) && email) {
             params.set('login_hint', email)
-          } else if (selectedConnection.includes('sms') && phoneNumber) {
+          } else if ((resolvedConnectionName === 'sms' || selectedConnection.includes('sms')) && phoneNumber) {
             params.set('login_hint', phoneNumber)
           }
         }
@@ -217,8 +228,10 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
                     }
                     
                     // If a connection is selected, include it
-                    if (selectedConnection) {
-                      params.set('connection', selectedConnectionName || selectedConnection)
+                    const resolvedConnectionName =
+                      selectedConnectionName || connections.find((c) => c.id === selectedConnection)?.name || ''
+                    if (resolvedConnectionName) {
+                      params.set('connection', resolvedConnectionName)
                     }
                     
                     // Use absolute URL to preserve subdomain (e.g., org.localhost:3000)
