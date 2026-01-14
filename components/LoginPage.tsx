@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useUser } from '@auth0/nextjs-auth0/client'
 import connectionsData from '@/connections.json'
 
@@ -22,6 +22,7 @@ type ConnectionOption = {
 
 export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, isLoading } = useUser()
   const [selectedConnection, setSelectedConnection] = useState<string>('') // UI selection (connection_id)
   const [selectedConnectionName, setSelectedConnectionName] = useState<string>('') // Auth0 connection name
@@ -31,6 +32,23 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
   const [code, setCode] = useState('')
   const [step, setStep] = useState<'select' | 'password' | 'code'>('select')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const authError = searchParams.get('auth_error')
+    if (!authError) return
+
+    const authErrorDescription = searchParams.get('auth_error_description') || ''
+    const message =
+      authErrorDescription
+        ? `Login failed: ${decodeURIComponent(authErrorDescription)}`
+        : `Login failed: ${authError}`
+
+    setError(message)
+    setStep('select')
+
+    // Clear the query params so refresh doesn't keep showing the error
+    router.replace(window.location.pathname)
+  }, [searchParams, router])
 
   // Use organization connections if available
   // If organization exists but has no connections, use empty array (will show message)

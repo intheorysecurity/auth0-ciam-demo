@@ -1,5 +1,5 @@
 import { handleAuth, handleLogin, handleCallback } from '@auth0/nextjs-auth0'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Helper function to extract base URL from request (for use in callbacks)
 function getBaseUrlFromRequest(req: any): string {
@@ -141,6 +141,21 @@ export async function GET(
                    (request.url.startsWith('https') ? 'https' : 'http')
   const baseUrl = `${protocol}://${host}`
   
+  // If Auth0 redirects back to the callback with an error (e.g. "the connection is not enabled"),
+  // handle it gracefully by redirecting to the home page and showing the error there.
+  // Example:
+  // /api/auth/callback?error=invalid_request&error_description=the%20connection%20is%20not%20enabled
+  if (context?.params?.auth0?.[0] === 'callback') {
+    const error = request.nextUrl.searchParams.get('error')
+    if (error) {
+      const description = request.nextUrl.searchParams.get('error_description') || ''
+      const redirectTo = new URL('/', baseUrl)
+      redirectTo.searchParams.set('auth_error', error)
+      if (description) redirectTo.searchParams.set('auth_error_description', description)
+      return NextResponse.redirect(redirectTo)
+    }
+  }
+
   // Call the auth handler with both request and context
   return authHandler(request, context)
 }
