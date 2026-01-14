@@ -1,25 +1,5 @@
 import { handleAuth, handleLogin, handleCallback } from '@auth0/nextjs-auth0'
 import { NextRequest } from 'next/server'
-import { headers } from 'next/headers'
-
-// Helper function to extract base URL from NextRequest (App Router)
-function getBaseUrlFromNextRequest(request: NextRequest): string {
-  // Use nextUrl which has the full URL including hostname
-  if (request.nextUrl) {
-    return `${request.nextUrl.protocol}//${request.nextUrl.host}`
-  }
-  
-  // Fallback: try headers
-  const host = request.headers.get('host') || request.headers.get('x-forwarded-host')
-  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0].trim() || 'http'
-  
-  if (host) {
-    return `${protocol}://${host}`
-  }
-  
-  // Final fallback
-  return process.env.AUTH0_BASE_URL || 'http://localhost:3000'
-}
 
 // Helper function to extract base URL from request (for use in callbacks)
 function getBaseUrlFromRequest(req: any): string {
@@ -44,7 +24,6 @@ function getBaseUrlFromRequest(req: any): string {
     }
     
     if (host) {
-      console.log('getBaseUrlFromRequest - Using headers, host:', host)
       return `${protocol}://${host}`
     }
   }
@@ -52,7 +31,6 @@ function getBaseUrlFromRequest(req: any): string {
   // Fallback: try nextUrl (but this might be normalized)
   if ('nextUrl' in req && req.nextUrl) {
     const nextUrl = req.nextUrl
-    console.log('getBaseUrlFromRequest - Using nextUrl, host:', nextUrl.host)
     return `${nextUrl.protocol}//${nextUrl.host}`
   }
   
@@ -79,28 +57,15 @@ function getBaseUrlFromRequest(req: any): string {
 // 1. Dynamically sets redirect URI based on request hostname (including subdomain)
 // 2. Extracts organization and screen_hint from query params
 // This ensures PKCE works correctly with subdomains
-const loginHandler = handleLogin((req) => {
+const loginHandler = handleLogin(async (req) => {
   // Get the base URL from the request (includes subdomain if present)
   const baseUrl = getBaseUrlFromRequest(req)
   const callbackUrl = `${baseUrl}/api/auth/callback`
   
-  // Debug logging
-  console.log('Login handler - Request object keys:', Object.keys(req))
-  console.log('Login handler - Base URL:', baseUrl)
-  console.log('Login handler - Callback URL:', callbackUrl)
-  if ('headers' in req) {
-    const headers = req.headers
-    if (headers instanceof Headers) {
-      console.log('Login handler - Host header:', headers.get('host'))
-      console.log('Login handler - X-Forwarded-Host:', headers.get('x-forwarded-host'))
-    } else {
-      console.log('Login handler - Headers object:', headers)
-    }
-  }
-  
   // Extract query parameters - handle both NextRequest (App Router) and NextApiRequest (Pages Router)
   let organization: string | null = null
   let screenHint: string | null = null
+  let connection: string | null = null
   
   if ('url' in req && req.url) {
     // NextRequest (App Router) - use URL API
@@ -108,6 +73,7 @@ const loginHandler = handleLogin((req) => {
       const url = new URL(req.url)
       organization = url.searchParams.get('organization')
       screenHint = url.searchParams.get('screen_hint')
+      connection = url.searchParams.get('connection')
     } catch {
       // URL parsing failed, skip
     }
@@ -115,6 +81,7 @@ const loginHandler = handleLogin((req) => {
     // NextApiRequest (Pages Router) - use query object
     organization = (req.query.organization as string) || null
     screenHint = (req.query.screen_hint as string) || null
+    connection = (req.query.connection as string) || null
   }
   
   // Build authorization params - include redirect_uri to ensure it matches the request hostname
@@ -130,8 +97,16 @@ const loginHandler = handleLogin((req) => {
   if (screenHint) {
     customParams.screen_hint = screenHint
   }
-  
-  console.log('Login handler - Authorization params:', customParams)
+
+  // If a specific connection was selected in the UI, pass it through to /authorize.
+  // Auth0 expects the *connection name* here, but some UIs store connection IDs.
+  // We resolve known placeholders and attempt id->name resolution via the Management API.
+  if (connection) {
+    const resolved = await resolveAuth0ConnectionName(connection)
+    if (resolved) {
+      customParams.connection = resolved
+    }
+  }
   
   return {
     authorizationParams: customParams,
@@ -147,10 +122,6 @@ const callbackHandler = handleCallback((req) => {
   // Redirect to profile page on the same subdomain to maintain branding
   // This ensures users stay on org.localhost:3000 instead of being redirected to localhost:3000
   const returnTo = `${baseUrl}/profile`
-  
-  console.log('Callback handler - Base URL:', baseUrl)
-  console.log('Callback handler - Redirect URI:', redirectUri)
-  console.log('Callback handler - Return To:', returnTo)
   
   return {
     redirectUri,
@@ -176,12 +147,71 @@ export async function GET(
                    (request.url.startsWith('https') ? 'https' : 'http')
   const baseUrl = `${protocol}://${host}`
   
-  console.log('Route handler - Host header:', request.headers.get('host'))
-  console.log('Route handler - X-Forwarded-Host:', request.headers.get('x-forwarded-host'))
-  console.log('Route handler - Base URL from headers:', baseUrl)
-  console.log('Route handler - Request URL:', request.url)
-  console.log('Route handler - NextURL host:', request.nextUrl?.host)
-  
   // Call the auth handler with both request and context
   return authHandler(request, context)
+}
+
+async function resolveAuth0ConnectionName(connectionParam: string): Promise<string | null> {
+  const value = connectionParam.trim()
+  if (!value) return null
+
+  // Demo placeholders used in `connections.json`
+  if (value === 'con_passwordless_email') return 'email'
+  if (value === 'con_passwordless_sms') return 'sms'
+
+  // If it's already a name (not an Auth0 connection_id), just pass it through
+  // Auth0 connection_ids are typically like: con_[A-Za-z0-9]{16}
+  if (!/^con_[A-Za-z0-9]{16}$/.test(value)) {
+    return value
+  }
+
+  // Resolve connection id -> name via Management API
+  const auth0Domain = process.env.AUTH0_DOMAIN
+  if (!auth0Domain) return value
+
+  try {
+    const managementApiToken = await getManagementApiToken()
+    const resp = await fetch(`https://${auth0Domain}/api/v2/connections/${encodeURIComponent(value)}`, {
+      headers: {
+        Authorization: `Bearer ${managementApiToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (!resp.ok) return value
+    const json: any = await resp.json()
+    const name = typeof json?.name === 'string' ? json.name : null
+    return name || value
+  } catch {
+    return value
+  }
+}
+
+async function getManagementApiToken(): Promise<string> {
+  const auth0Domain = process.env.AUTH0_DOMAIN
+  const clientId = process.env.AUTH0_MANAGEMENT_API_CLIENT_ID
+  const clientSecret = process.env.AUTH0_MANAGEMENT_API_CLIENT_SECRET
+
+  if (!auth0Domain || !clientId || !clientSecret) {
+    throw new Error('Missing Auth0 management API env vars')
+  }
+
+  const response = await fetch(`https://${auth0Domain}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      audience: `https://${auth0Domain}/api/v2/`,
+      grant_type: 'client_credentials',
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to get management API token')
+  }
+
+  const data = await response.json()
+  return data.access_token
 }

@@ -14,6 +14,14 @@
   {
     "id": "con_passwordless_sms",
     "displayName": "SMS (Passwordless)"
+  },
+  {
+    "id": "con_l5Frz5CeN8sd3JXG",
+    "displayName": "MockSAML"
+  },
+  {
+    "id": "con_ZcOhvuop5D2ktkNZ",
+    "displayName": "DummyIdP"
   }
 ]
 

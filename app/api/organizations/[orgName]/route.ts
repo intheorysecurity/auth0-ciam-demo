@@ -37,9 +37,6 @@ export async function GET(
 
     const org = await response.json()
 
-    // Log raw JSON response from Auth0
-    console.log('Raw Organization JSON Response:', JSON.stringify(org, null, 2))
-
     // Fetch enabled connections for this organization
     // Reference: https://auth0.com/docs/api/management/v2/organizations/get-enabled-connections
     // Endpoint: GET /api/v2/organizations/{id}/enabled_connections
@@ -56,7 +53,6 @@ export async function GET(
     let enabledConnections: any[] = []
     if (connectionsResponse.ok) {
       enabledConnections = await connectionsResponse.json()
-      console.log('Enabled Connections for Organization:', JSON.stringify(enabledConnections, null, 2))
     }
 
     // Extract branding from organization response

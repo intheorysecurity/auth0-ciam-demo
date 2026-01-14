@@ -10,10 +10,21 @@ interface LoginPageProps {
   orgBranding: any
 }
 
+type ConnectionOption = {
+  id: string
+  displayName: string
+  /**
+   * Optional Auth0 connection name (used by /authorize `connection=`).
+   * If omitted, we'll fall back to `id` and resolve server-side when possible.
+   */
+  name?: string
+}
+
 export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
   const router = useRouter()
   const { user, isLoading } = useUser()
-  const [selectedConnection, setSelectedConnection] = useState<string>('')
+  const [selectedConnection, setSelectedConnection] = useState<string>('') // UI selection (usually connection_id)
+  const [selectedConnectionName, setSelectedConnectionName] = useState<string>('') // Auth0 connection name (best-effort)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -24,11 +35,11 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
   // Use organization connections if available
   // If organization exists but has no connections, use empty array (will show message)
   // Only fall back to default connections if no organization is detected
-  const connections = orgBranding
+  const connections: ConnectionOption[] = orgBranding
     ? (orgBranding.connections && orgBranding.connections.length > 0
         ? orgBranding.connections
         : []) // Organization exists but has no connections - show empty state
-    : (connectionsData as Array<{ id: string; displayName: string }>) // No organization - use default connections
+    : (connectionsData as ConnectionOption[]) // No organization - use default connections
 
   useEffect(() => {
     // Apply organization branding if available
@@ -50,7 +61,9 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
   }, [orgBranding])
 
   const handleConnectionSelect = (connectionId: string) => {
+    const conn = connections.find((c) => c.id === connectionId)
     setSelectedConnection(connectionId)
+    setSelectedConnectionName(conn?.name || '')
     setError('')
     
     // Determine if it's passwordless or database connection
@@ -72,7 +85,9 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
     try {
       // Build login URL with query parameters
       const params = new URLSearchParams()
-      params.set('connection', selectedConnection)
+      // Auth0 /authorize expects connection *name*, but our dropdown often stores *id*.
+      // Send best-effort name; server will fall back/resolve if we only have an id.
+      params.set('connection', selectedConnectionName || selectedConnection)
       
       // Add organization ID if detected (use org_id for Auth0)
       if (orgBranding?.id) {
@@ -100,7 +115,6 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
       // Redirect to Auth0 login endpoint
       // Use absolute URL to preserve subdomain (e.g., org.localhost:3000)
       const loginUrl = `${window.location.origin}/api/auth/login?${params.toString()}`
-      console.log('Redirecting to login URL:', loginUrl)
       window.location.href = loginUrl
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.')
@@ -171,7 +185,7 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
                   onChange={(e) => handleConnectionSelect(e.target.value)}
                 >
                   <option value="">Choose a login method...</option>
-                  {connections.map((conn: { id: string; displayName: string }) => (
+                  {connections.map((conn: ConnectionOption) => (
                     <option key={conn.id} value={conn.id}>
                       {conn.displayName}
                     </option>
@@ -204,12 +218,11 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
                     
                     // If a connection is selected, include it
                     if (selectedConnection) {
-                      params.set('connection', selectedConnection)
+                      params.set('connection', selectedConnectionName || selectedConnection)
                     }
                     
                     // Use absolute URL to preserve subdomain (e.g., org.localhost:3000)
                     const signupUrl = `${window.location.origin}/api/auth/login?${params.toString()}`
-                    console.log('Redirecting to signup URL:', signupUrl)
                     window.location.href = signupUrl
                   }}
                   style={{
@@ -294,6 +307,7 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
               onClick={() => {
                 setStep('select')
                 setSelectedConnection('')
+                setSelectedConnectionName('')
                 setError('')
               }}
             >
