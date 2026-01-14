@@ -1,0 +1,19 @@
+[
+  {
+    "id": "con_PEETDlX9VF1tIkfj",
+    "displayName": "Username/Password"
+  },
+  {
+    "id": "con_cXrO5FRc5zWBy5Um",
+    "displayName": "Customer Database"
+  },
+  {
+    "id": "con_passwordless_email",
+    "displayName": "Email (Passwordless)"
+  },
+  {
+    "id": "con_passwordless_sms",
+    "displayName": "SMS (Passwordless)"
+  }
+]
+
