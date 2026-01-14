@@ -82,6 +82,22 @@ export default async function ProfilePage() {
     const hostname = headersList.get('host') || headersList.get('x-forwarded-host') || 'localhost'
     const protocol = headersList.get('x-forwarded-proto')?.split(',')[0].trim() || 'http'
     const baseUrl = `${protocol}://${hostname}`
+
+    // If we're on an org subdomain, include organization=<org_id> in the login redirect.
+    // This ensures Auth0 receives the org context even when bypassing the home page login UI.
+    let orgName: string | null = null
+    let orgBranding: any = null
+    const hostNoPort = hostname.split(':')[0]
+    const parts = hostNoPort.split('.')
+    if (parts.length > 2 || (parts.length === 2 && parts[0] !== 'localhost' && parts[0] !== '127')) {
+      orgName = parts[0]
+      orgBranding = await getOrganizationBranding(orgName)
+    }
+
+    if (orgBranding?.id) {
+      redirect(`${baseUrl}/api/auth/login?organization=${encodeURIComponent(orgBranding.id)}`)
+    }
+
     redirect(`${baseUrl}/api/auth/login`)
   }
 

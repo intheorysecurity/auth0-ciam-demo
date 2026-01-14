@@ -57,7 +57,7 @@ function getBaseUrlFromRequest(req: any): string {
 // 1. Dynamically sets redirect URI based on request hostname (including subdomain)
 // 2. Extracts organization and screen_hint from query params
 // This ensures PKCE works correctly with subdomains
-const loginHandler = handleLogin(async (req) => {
+const loginHandler = handleLogin((req) => {
   // Get the base URL from the request (includes subdomain if present)
   const baseUrl = getBaseUrlFromRequest(req)
   const callbackUrl = `${baseUrl}/api/auth/callback`
@@ -90,22 +90,16 @@ const loginHandler = handleLogin(async (req) => {
     redirect_uri: callbackUrl,
   }
   
-  if (organization) {
-    customParams.organization = organization
-  }
+  if (organization) customParams.organization = organization
   
   if (screenHint) {
     customParams.screen_hint = screenHint
   }
 
   // If a specific connection was selected in the UI, pass it through to /authorize.
-  // Auth0 expects the *connection name* here, but some UIs store connection IDs.
-  // We resolve known placeholders and attempt id->name resolution via the Management API.
+  // Auth0 expects the *connection name* here.
   if (connection) {
-    const resolved = await resolveAuth0ConnectionName(connection)
-    if (resolved) {
-      customParams.connection = resolved
-    }
+    customParams.connection = resolveAuth0ConnectionName(connection)
   }
   
   return {
@@ -151,67 +145,14 @@ export async function GET(
   return authHandler(request, context)
 }
 
-async function resolveAuth0ConnectionName(connectionParam: string): Promise<string | null> {
+function resolveAuth0ConnectionName(connectionParam: string): string {
   const value = connectionParam.trim()
-  if (!value) return null
+  if (!value) return value
 
   // Demo placeholders used in `connections.json`
   if (value === 'con_passwordless_email') return 'email'
   if (value === 'con_passwordless_sms') return 'sms'
 
-  // If it's already a name (not an Auth0 connection_id), just pass it through
-  // Auth0 connection_ids are typically like: con_[A-Za-z0-9]{16}
-  if (!/^con_[A-Za-z0-9]{16}$/.test(value)) {
-    return value
-  }
-
-  // Resolve connection id -> name via Management API
-  const auth0Domain = process.env.AUTH0_DOMAIN
-  if (!auth0Domain) return value
-
-  try {
-    const managementApiToken = await getManagementApiToken()
-    const resp = await fetch(`https://${auth0Domain}/api/v2/connections/${encodeURIComponent(value)}`, {
-      headers: {
-        Authorization: `Bearer ${managementApiToken}`,
-        'Content-Type': 'application/json',
-      },
-    })
-    if (!resp.ok) return value
-    const json: any = await resp.json()
-    const name = typeof json?.name === 'string' ? json.name : null
-    return name || value
-  } catch {
-    return value
-  }
-}
-
-async function getManagementApiToken(): Promise<string> {
-  const auth0Domain = process.env.AUTH0_DOMAIN
-  const clientId = process.env.AUTH0_MANAGEMENT_API_CLIENT_ID
-  const clientSecret = process.env.AUTH0_MANAGEMENT_API_CLIENT_SECRET
-
-  if (!auth0Domain || !clientId || !clientSecret) {
-    throw new Error('Missing Auth0 management API env vars')
-  }
-
-  const response = await fetch(`https://${auth0Domain}/oauth/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      audience: `https://${auth0Domain}/api/v2/`,
-      grant_type: 'client_credentials',
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to get management API token')
-  }
-
-  const data = await response.json()
-  return data.access_token
+  // Otherwise assume it's already a connection name (e.g. Username-Password-Authentication, google-oauth2, etc.)
+  return value
 }
