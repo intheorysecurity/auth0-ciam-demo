@@ -8,6 +8,7 @@ import connectionsData from '@/connections.json'
 interface LoginPageProps {
   orgName: string | null
   orgBranding: any
+  defaultConnections?: ConnectionOption[] | null
 }
 
 type ConnectionOption = {
@@ -20,7 +21,7 @@ type ConnectionOption = {
   name?: string
 }
 
-export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
+export default function LoginPage({ orgName, orgBranding, defaultConnections }: LoginPageProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, isLoading } = useUser()
@@ -59,7 +60,7 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
     ? (orgBranding.connections && orgBranding.connections.length > 0
         ? orgBranding.connections
         : []) // Organization exists but has no connections - show empty state
-    : (connectionsData as ConnectionOption[]) // No organization - use default connections
+    : (defaultConnections ?? (connectionsData as ConnectionOption[])) // Root: prefer Management API list; fallback to local file
 
   useEffect(() => {
     // Apply organization branding if available

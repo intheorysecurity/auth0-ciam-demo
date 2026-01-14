@@ -3,6 +3,12 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import HomeClient from '@/components/HomeClient'
 
+type ConnectionOption = {
+  id: string
+  name: string
+  displayName: string
+}
+
 async function getOrganizationBranding(orgName: string) {
   try {
     const auth0Domain = process.env.AUTH0_DOMAIN
@@ -95,6 +101,74 @@ async function getManagementApiToken(): Promise<string> {
   return data.access_token
 }
 
+async function getDefaultClientConnections(): Promise<ConnectionOption[] | null> {
+  const auth0Domain = process.env.AUTH0_DOMAIN
+  const clientId = process.env.AUTH0_CLIENT_ID
+  if (!auth0Domain || !clientId) return null
+
+  try {
+    const managementApiToken = await getManagementApiToken()
+
+    // Fetch all connections (include enabled_clients so we can filter by this app's client_id).
+    // If enabled_clients is not present/usable, we fall back to per-connection client lookup:
+    // https://auth0.com/docs/api/management/v2/connections/get-connection-clients
+    const resp = await fetch(
+      `https://${auth0Domain}/api/v2/connections?per_page=100&include_totals=false&include_fields=true&fields=id,name,display_name,enabled_clients`,
+      {
+        headers: {
+          Authorization: `Bearer ${managementApiToken}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      }
+    )
+
+    if (!resp.ok) return null
+    const connections: any[] = await resp.json()
+
+    const hasEnabledClientsField = connections.some((c) => Array.isArray(c?.enabled_clients))
+    if (hasEnabledClientsField) {
+      return connections
+        .filter((c) => Array.isArray(c.enabled_clients) && c.enabled_clients.includes(clientId))
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          displayName: c.display_name || c.name,
+        }))
+    }
+
+    // Fallback: check enabled clients for each connection (more expensive).
+    const results: ConnectionOption[] = []
+    for (const c of connections) {
+      if (!c?.id || !c?.name) continue
+      const clientsResp = await fetch(
+        `https://${auth0Domain}/api/v2/connections/${encodeURIComponent(c.id)}/clients`,
+        {
+          headers: {
+            Authorization: `Bearer ${managementApiToken}`,
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store',
+        }
+      )
+      if (!clientsResp.ok) continue
+      const clients: any[] = await clientsResp.json()
+      const enabled = clients.some((cl) => cl?.client_id === clientId)
+      if (enabled) {
+        results.push({
+          id: c.id,
+          name: c.name,
+          displayName: c.display_name || c.name,
+        })
+      }
+    }
+
+    return results
+  } catch {
+    return null
+  }
+}
+
 export default async function Home() {
   // Get hostname from request headers first (needed for redirects)
   const headersList = await headers()
@@ -112,12 +186,16 @@ export default async function Home() {
   // Extract organization name from subdomain
   let orgName: string | null = null
   let orgBranding: any = null
+  let defaultConnections: ConnectionOption[] | null = null
   
   const parts = hostname.split('.')
   if (parts.length > 2 || (parts.length === 2 && parts[0] !== 'localhost' && parts[0] !== '127')) {
     orgName = parts[0]
     orgBranding = await getOrganizationBranding(orgName)
+  } else {
+    // Root (no org subdomain): show only connections enabled for this client/application.
+    defaultConnections = await getDefaultClientConnections()
   }
 
-  return <HomeClient orgName={orgName} orgBranding={orgBranding} />
+  return <HomeClient orgName={orgName} orgBranding={orgBranding} defaultConnections={defaultConnections} />
 }

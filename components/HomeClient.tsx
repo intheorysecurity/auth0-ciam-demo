@@ -6,9 +6,10 @@ import LoginPage from '@/components/LoginPage'
 interface HomeClientProps {
   orgName: string | null
   orgBranding: any
+  defaultConnections?: Array<{ id: string; name: string; displayName: string }> | null
 }
 
-export default function HomeClient({ orgName, orgBranding }: HomeClientProps) {
+export default function HomeClient({ orgName, orgBranding, defaultConnections }: HomeClientProps) {
   // Apply branding colors immediately (before useEffect runs)
   const brandingStyles = orgBranding?.branding ? `
     :root {
@@ -104,7 +105,7 @@ export default function HomeClient({ orgName, orgBranding }: HomeClientProps) {
         </div>
 
         {/* Login Panel */}
-        <LoginPage orgName={orgName} orgBranding={orgBranding} />
+        <LoginPage orgName={orgName} orgBranding={orgBranding} defaultConnections={defaultConnections} />
       </div>
     </div>
     </>
