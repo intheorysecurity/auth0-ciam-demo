@@ -33,6 +33,8 @@ export default function LoginPage({ orgName, orgBranding }: LoginPageProps) {
   const [step, setStep] = useState<'select' | 'password' | 'code'>('select')
   const [error, setError] = useState('')
 
+  // Legacy fallback: if anything still sends auth_error params to '/', surface it.
+  // Primary behavior is now to route to /auth-error.
   useEffect(() => {
     const authError = searchParams.get('auth_error')
     if (!authError) return

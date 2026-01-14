@@ -149,9 +149,9 @@ export async function GET(
     const error = request.nextUrl.searchParams.get('error')
     if (error) {
       const description = request.nextUrl.searchParams.get('error_description') || ''
-      const redirectTo = new URL('/', baseUrl)
-      redirectTo.searchParams.set('auth_error', error)
-      if (description) redirectTo.searchParams.set('auth_error_description', description)
+      const redirectTo = new URL('/auth-error', baseUrl)
+      redirectTo.searchParams.set('error', error)
+      if (description) redirectTo.searchParams.set('error_description', description)
       return NextResponse.redirect(redirectTo)
     }
   }
