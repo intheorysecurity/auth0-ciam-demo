@@ -48,24 +48,10 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
    - `AUTH0_MANAGEMENT_API_CLIENT_ID`: Management API Client ID
    - `AUTH0_MANAGEMENT_API_CLIENT_SECRET`: Management API Client Secret
 
-3. **Configure connections**:
-   Edit `connections.json` to include your Auth0 connection IDs:
-   ```json
-   [
-     {
-       "id": "con_database_username_password",
-       "displayName": "Username/Password"
-     },
-     {
-       "id": "con_passwordless_email",
-       "displayName": "Email (Passwordless)"
-     },
-     {
-       "id": "con_passwordless_sms",
-       "displayName": "SMS (Passwordless)"
-     }
-   ]
-   ```
+3. **Enable connections in Auth0 (no local config file)**:
+   - **Root domain (no subdomain)**: the login dropdown is populated dynamically from Auth0 by fetching connections and filtering to those **enabled for your Application Client**.
+     - This uses the Auth0 Management API connection clients lookup ([Get enabled clients for a connection](https://auth0.com/docs/api/management/v2/connections/get-connection-clients)) as a fallback when needed.
+   - **Organization subdomains**: the login dropdown is populated from the organization’s **enabled connections**.
 
 4. **Configure Auth0 Application**:
    - In Auth0 Dashboard, go to Applications → Your Application
@@ -132,7 +118,6 @@ auth0-ciam-demo/
 │   ├── LoginPage.tsx            # Login component with connection dropdown
 │   ├── AccountLinking.tsx      # Account linking component
 │   └── MFAEnrollment.tsx        # MFA enrollment component
-├── connections.json             # Connection configuration
 ├── package.json
 ├── tsconfig.json
 └── next.config.js

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useUser } from '@auth0/nextjs-auth0/client'
-import connectionsData from '@/connections.json'
 
 interface LoginPageProps {
   orgName: string | null
@@ -55,12 +54,12 @@ export default function LoginPage({ orgName, orgBranding, defaultConnections }: 
 
   // Use organization connections if available
   // If organization exists but has no connections, use empty array (will show message)
-  // Only fall back to default connections if no organization is detected
+  // Root domain uses connections fetched from Auth0 for this client/application.
   const connections: ConnectionOption[] = orgBranding
     ? (orgBranding.connections && orgBranding.connections.length > 0
         ? orgBranding.connections
         : []) // Organization exists but has no connections - show empty state
-    : (defaultConnections ?? (connectionsData as ConnectionOption[])) // Root: prefer Management API list; fallback to local file
+    : (defaultConnections ?? []) // Root: if null/empty, we'll show an empty state with guidance
 
   useEffect(() => {
     // Apply organization branding if available
@@ -203,7 +202,11 @@ export default function LoginPage({ orgName, orgBranding, defaultConnections }: 
                   color: '#6b6b6b', 
                   fontSize: '0.875rem'
                 }}>
-                  This organization does not have any enabled connections. Please contact your administrator.
+                  {orgBranding
+                    ? 'This organization does not have any enabled connections. Please contact your administrator.'
+                    : (defaultConnections === null
+                        ? 'Unable to load enabled connections for this application from Auth0. Please check your Management API credentials/scopes and try again.'
+                        : 'No connections are enabled for this application. Enable at least one connection for this Client in Auth0, then refresh.')}
                 </p>
               </div>
             </div>

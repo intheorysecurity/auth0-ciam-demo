@@ -164,7 +164,7 @@ function resolveAuth0ConnectionName(connectionParam: string): string {
   const value = connectionParam.trim()
   if (!value) return value
 
-  // Demo placeholders used in `connections.json`
+  // Legacy demo placeholders (if a connection "id-like" value is ever passed in)
   if (value === 'con_passwordless_email') return 'email'
   if (value === 'con_passwordless_sms') return 'sms'
 
