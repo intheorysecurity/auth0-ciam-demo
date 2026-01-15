@@ -157,7 +157,23 @@ export async function GET(
   }
 
   // Call the auth handler with both request and context
-  return authHandler(request, context)
+  try {
+    return await authHandler(request, context)
+  } catch (err: any) {
+    // Common failure mode when cookies are not set/sent back to the callback route.
+    // Example: "Missing state cookie from login request"
+    if (context?.params?.auth0?.[0] === 'callback') {
+      const redirectTo = new URL('/auth-error', baseUrl)
+      redirectTo.searchParams.set('error', err?.code || 'callback_handler_failed')
+      const description =
+        err?.cause?.message ||
+        err?.message ||
+        'Callback handler failed. Missing state cookie from login request.'
+      redirectTo.searchParams.set('error_description', description)
+      return NextResponse.redirect(redirectTo)
+    }
+    throw err
+  }
 }
 
 function resolveAuth0ConnectionName(connectionParam: string): string {
