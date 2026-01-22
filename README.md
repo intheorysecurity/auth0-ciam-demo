@@ -49,7 +49,6 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
    - `AUTH0_MANAGEMENT_API_CLIENT_ID`: Management API Client ID
    - `AUTH0_MANAGEMENT_API_CLIENT_SECRET`: Management API Client Secret
    - `AUTH0_SELF_SERVICE_SSO_PROFILE_ID`: Self‑Service SSO profile ID used to generate SSO access tickets ([Manage Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO/manage-self-service-sso#management-api-2))
-   - `APP_ROOT_HOSTNAME` (recommended for ngrok): Root hostname that should be treated as “no organization”, e.g. `app.intheory.ngrok.app`. Any host matching `app.<org>.ngrok.app` will be treated as an org *except* when `<org>` equals the root hostname’s second label.
 
 3. **Enable connections in Auth0 (no local config file)**:
    - **Root domain (no subdomain)**: the login dropdown is populated dynamically from Auth0 by fetching connections and filtering to those **enabled for your Application Client**.
@@ -105,35 +104,31 @@ To test organization-specific branding:
 3. Access the application at `http://org.localhost:3000`
    - Note: You may need to add `127.0.0.1 org.localhost` to your `/etc/hosts` file (Mac/Linux) or `C:\Windows\System32\drivers\etc\hosts` (Windows)
 
-## Testing with ngrok (recommended for external testing)
+## Custom domains / hostname-based org detection
 
-This demo supports a simple hostname scheme where **`app` is a fixed prefix**:
+This demo treats a request as an “organization experience” when the hostname contains an org label
+that matches an existing Auth0 Organization **by name**.
 
-- **Root (no org)**: `app.intheory.ngrok.app` (like `localhost:3000`)
-- **Org (tenant)**: `app.intheory-security.ngrok.app` (like `org.localhost:3000`)
+We try a small set of candidates derived from the hostname:
 
-To make this work, set:
+- **Local dev**: `acme.localhost:3000` → candidate org name `acme`
+- **Subdomain**: `acme.example.com` → candidate org name `acme`
+- **`app.` prefix**: `app.acme.example.com` → candidate org name `acme`
 
-- `APP_ROOT_HOSTNAME=app.intheory.ngrok.app`
-
-This tells the app that `app.intheory.ngrok.app` is the **root** experience. Any host matching `app.<org>.ngrok.app` will be treated as an **organization host**, and the UI will show org branding + org-specific settings.
+If no candidate matches an Auth0 org, the app shows the **default (root) page**.
 
 ### Auth0 allowlists (important)
 
-Auth0 requires explicit allowlists for redirects (no wildcard support for arbitrary ngrok subdomains).
-When testing with ngrok, add **each hostname you plan to use**:
+Auth0 requires explicit allowlists for redirects.
+When using custom domains (including ngrok), add **each hostname you plan to use**:
 
 - **Allowed Callback URLs**:
-  - `https://app.intheory.ngrok.app/api/auth/callback`
-  - `https://app.intheory.ngrok.app/api/auth/link-callback`
-  - `https://app.intheory-security.ngrok.app/api/auth/callback`
-  - `https://app.intheory-security.ngrok.app/api/auth/link-callback`
+  - `https://<host>/api/auth/callback`
+  - `https://<host>/api/auth/link-callback`
 - **Allowed Logout URLs**:
-  - `https://app.intheory.ngrok.app`
-  - `https://app.intheory-security.ngrok.app`
+  - `https://<host>`
 - **Allowed Web Origins**:
-  - `https://app.intheory.ngrok.app`
-  - `https://app.intheory-security.ngrok.app`
+  - `https://<host>`
 
 ## Redirect behavior (subdomain-safe)
 

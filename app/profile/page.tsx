@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import ProfileClient from '@/components/ProfileClient'
-import { getOrgNameFromHostname } from '@/lib/host'
+import { getOrgNameCandidatesFromHostname } from '@/lib/host'
 
 async function getOrganizationBranding(orgName: string) {
   try {
@@ -86,9 +86,17 @@ export default async function ProfilePage() {
 
     // If we're on an org subdomain, include organization=<org_id> in the login redirect.
     // This ensures Auth0 receives the org context even when bypassing the home page login UI.
-    const orgName: string | null = getOrgNameFromHostname(hostname)
+    const orgNameCandidates = getOrgNameCandidatesFromHostname(hostname)
     let orgBranding: any = null
-    if (orgName) orgBranding = await getOrganizationBranding(orgName)
+    let orgName: string | null = null
+    for (const candidate of orgNameCandidates) {
+      const branding = await getOrganizationBranding(candidate)
+      if (branding) {
+        orgName = candidate
+        orgBranding = branding
+        break
+      }
+    }
 
     if (orgBranding?.id) {
       redirect(`${baseUrl}/api/auth/login?organization=${encodeURIComponent(orgBranding.id)}`)
@@ -101,11 +109,18 @@ export default async function ProfilePage() {
   const headersList = await headers()
   const hostname = headersList.get('host') || headersList.get('x-forwarded-host') || 'localhost'
   
-  // Extract organization name from hostname (supports localhost + ngrok patterns)
-  const orgName: string | null = getOrgNameFromHostname(hostname)
+  // Resolve organization from hostname (generic: try candidates and pick the first org that exists in Auth0)
+  const orgNameCandidates = getOrgNameCandidatesFromHostname(hostname)
   let orgBranding: any = null
-  
-  if (orgName) orgBranding = await getOrganizationBranding(orgName)
+  let orgName: string | null = null
+  for (const candidate of orgNameCandidates) {
+    const branding = await getOrganizationBranding(candidate)
+    if (branding) {
+      orgName = candidate
+      orgBranding = branding
+      break
+    }
+  }
 
   return <ProfileClient orgBranding={orgBranding} orgName={orgName} />
 }

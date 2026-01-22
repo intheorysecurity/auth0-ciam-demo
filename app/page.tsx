@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import HomeClient from '@/components/HomeClient'
-import { getOrgNameFromHostname } from '@/lib/host'
+import { getOrgNameCandidatesFromHostname } from '@/lib/host'
 
 type ConnectionOption = {
   id: string
@@ -184,14 +184,22 @@ export default async function Home() {
     redirect(`${baseUrl}/profile`)
   }
   
-  // Extract organization name from hostname (supports localhost + ngrok patterns)
-  const orgName: string | null = getOrgNameFromHostname(hostname)
+  // Resolve organization from hostname (generic: try candidates and pick the first org that exists in Auth0)
+  const orgNameCandidates = getOrgNameCandidatesFromHostname(hostname)
   let orgBranding: any = null
   let defaultConnections: ConnectionOption[] | null = null
   
-  if (orgName) {
-    orgBranding = await getOrganizationBranding(orgName)
-  } else {
+  let orgName: string | null = null
+  for (const candidate of orgNameCandidates) {
+    const branding = await getOrganizationBranding(candidate)
+    if (branding) {
+      orgName = candidate
+      orgBranding = branding
+      break
+    }
+  }
+
+  if (!orgName) {
     // Root (no org subdomain): show only connections enabled for this client/application.
     defaultConnections = await getDefaultClientConnections()
   }
