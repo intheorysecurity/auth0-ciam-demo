@@ -15,6 +15,7 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
 - **Flexible Login Options**: Dropdown menu to select from database and passwordless connections
 - **Organization-Specific Branding**: Dynamic branding based on subdomain (e.g., `org.localhost`)
 - **Account Linking**: Link/unlink social media accounts (Google, Facebook, X/Twitter)
+- **Self-Service SSO (B2B)**: Create a Self‑Service SSO access ticket for an organization and redirect customer admins to Auth0’s SSO setup assistant ([Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO))
 - **Self-Service MFA Enrollment**: Users can enroll in SMS, Email, or TOTP (Authenticator App) MFA factors
 - **Profile Management**: User profile page with account information and settings
 
@@ -47,6 +48,7 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
    - `AUTH0_DOMAIN`: Your Auth0 domain (e.g., `YOUR_TENANT.auth0.com`)
    - `AUTH0_MANAGEMENT_API_CLIENT_ID`: Management API Client ID
    - `AUTH0_MANAGEMENT_API_CLIENT_SECRET`: Management API Client Secret
+   - `AUTH0_SELF_SERVICE_SSO_PROFILE_ID`: Self‑Service SSO profile ID used to generate SSO access tickets ([Manage Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO/manage-self-service-sso#management-api-2))
 
 3. **Enable connections in Auth0 (no local config file)**:
    - **Root domain (no subdomain)**: the login dropdown is populated dynamically from Auth0 by fetching connections and filtering to those **enabled for your Application Client**.
@@ -72,6 +74,7 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
      - `read:organizations`
      - `read:organization_members`
      - `read:connections`
+     - Self‑Service SSO ticket creation uses the Management API Self‑Service SSO endpoints (see the docs for the required permissions/scopes in your tenant): [Manage Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO/manage-self-service-sso#management-api-2)
    - Use the Client ID and Client Secret in your `.env.local`
 
 6. **Configure Social Connections** (optional):

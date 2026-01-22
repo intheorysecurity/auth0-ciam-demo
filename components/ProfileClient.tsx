@@ -317,6 +317,7 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
             </div>
             <nav className="login-bar-nav">
               <a href="/profile">Profile</a>
+              {orgName ? <a href={`/organizations/${encodeURIComponent(orgName)}`}>Organization</a> : null}
               <a href="/api/auth/logout">Logout</a>
             </nav>
           </div>
