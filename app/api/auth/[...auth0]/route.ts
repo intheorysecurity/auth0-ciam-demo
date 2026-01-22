@@ -1,4 +1,4 @@
-import { handleAuth, handleLogin, handleCallback } from '@auth0/nextjs-auth0'
+import { handleAuth, handleLogin, handleCallback, handleLogout } from '@auth0/nextjs-auth0'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Helper function to extract base URL from request (for use in callbacks)
@@ -137,10 +137,20 @@ const callbackHandler = handleCallback((req) => {
   }
 })
 
+// Custom logout handler that returns users to the same host they initiated logout from
+// (preserves org subdomain branding).
+const logoutHandler = handleLogout((req) => {
+  const baseUrl = getBaseUrlFromRequest(req)
+  return {
+    returnTo: `${baseUrl}/`,
+  }
+})
+
 // Create a wrapper that extracts hostname at route level
 const authHandler = handleAuth({
   login: loginHandler,
   callback: callbackHandler,
+  logout: logoutHandler,
 })
 
 // Export GET handler that wraps the auth handler
