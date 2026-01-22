@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Helper function to extract base URL from request (for use in callbacks)
 function getBaseUrlFromRequest(req: any): string {
+  const firstHeaderValue = (value: string | null): string | null => {
+    if (!value) return null
+    // Some proxies send comma-separated values; we want the first one.
+    return value.split(',')[0].trim() || null
+  }
+
   // PRIORITY: Headers first (most reliable for subdomains)
   // nextUrl might be normalized and lose the subdomain
   if ('headers' in req) {
@@ -13,13 +19,18 @@ function getBaseUrlFromRequest(req: any): string {
     
     if (headers instanceof Headers) {
       // App Router - Headers object
-      host = headers.get('host') || headers.get('x-forwarded-host')
-      const proto = headers.get('x-forwarded-proto')
+      // Prefer x-forwarded-* (proxy-aware) over host.
+      host = firstHeaderValue(headers.get('x-forwarded-host')) || firstHeaderValue(headers.get('host'))
+      const proto = firstHeaderValue(headers.get('x-forwarded-proto'))
       protocol = proto ? proto.split(',')[0].trim() : (headers.get('x-forwarded-port') === '443' ? 'https' : 'http')
     } else if (typeof headers === 'object' && headers !== null) {
       // Pages Router - plain object
-      host = (headers.host as string) || (headers['x-forwarded-host'] as string) || null
-      const proto = (headers['x-forwarded-proto'] as string)
+      // Prefer x-forwarded-* (proxy-aware) over host.
+      host =
+        firstHeaderValue((headers['x-forwarded-host'] as string) || null) ||
+        firstHeaderValue((headers.host as string) || null) ||
+        null
+      const proto = firstHeaderValue((headers['x-forwarded-proto'] as string) || null)
       protocol = proto ? proto.split(',')[0].trim() : 'http'
     }
     
@@ -136,8 +147,11 @@ export async function GET(
 ) {
   // Extract base URL from the actual NextRequest (this has the full hostname)
   // Use headers to get the actual hostname (including subdomain)
-  const host = request.headers.get('host') || request.headers.get('x-forwarded-host') || 'localhost:3000'
-  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0].trim() || 
+  const host =
+    request.headers.get('x-forwarded-host')?.split(',')[0].trim() ||
+    request.headers.get('host')?.split(',')[0].trim() ||
+    'localhost:3000'
+  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0].trim() ||
                    (request.url.startsWith('https') ? 'https' : 'http')
   const baseUrl = `${protocol}://${host}`
   
