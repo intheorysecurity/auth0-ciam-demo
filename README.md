@@ -105,6 +105,56 @@ To test organization-specific branding:
 3. Access the application at `http://org.localhost:3000`
    - Note: You may need to add `127.0.0.1 org.localhost` to your `/etc/hosts` file (Mac/Linux) or `C:\Windows\System32\drivers\etc\hosts` (Windows)
 
+## Testing with ngrok (recommended for external testing)
+
+This demo supports a simple hostname scheme where **`app` is a fixed prefix**:
+
+- **Root (no org)**: `app.intheory.ngrok.app` (like `localhost:3000`)
+- **Org (tenant)**: `app.intheory-security.ngrok.app` (like `org.localhost:3000`)
+
+To make this work, set:
+
+- `APP_ROOT_HOSTNAME=app.intheory.ngrok.app`
+
+This tells the app that `app.intheory.ngrok.app` is the **root** experience. Any host matching `app.<org>.ngrok.app` will be treated as an **organization host**, and the UI will show org branding + org-specific settings.
+
+### Auth0 allowlists (important)
+
+Auth0 requires explicit allowlists for redirects (no wildcard support for arbitrary ngrok subdomains).
+When testing with ngrok, add **each hostname you plan to use**:
+
+- **Allowed Callback URLs**:
+  - `https://app.intheory.ngrok.app/api/auth/callback`
+  - `https://app.intheory.ngrok.app/api/auth/link-callback`
+  - `https://app.intheory-security.ngrok.app/api/auth/callback`
+  - `https://app.intheory-security.ngrok.app/api/auth/link-callback`
+- **Allowed Logout URLs**:
+  - `https://app.intheory.ngrok.app`
+  - `https://app.intheory-security.ngrok.app`
+- **Allowed Web Origins**:
+  - `https://app.intheory.ngrok.app`
+  - `https://app.intheory-security.ngrok.app`
+
+## Redirect behavior (subdomain-safe)
+
+This app is designed to preserve the host/subdomain during the Auth0 flow:
+
+- **Login (`/api/auth/login`)**: dynamically sets `redirect_uri` based on the incoming request host (so org subdomains don’t fall back to `localhost`).
+- **Callback (`/api/auth/callback`)**: uses a relative `returnTo` (`/profile`) so the post-login redirect stays on the same host that received the callback.
+- **Logout (`/api/auth/logout`)**: dynamically sets `returnTo` back to the same host users initiated logout from.
+
+If you observe unexpected redirects to `localhost`, it almost always means the Auth0 allowlists don’t include the hostname you’re testing (callbacks/logouts will be rejected or normalized).
+
+## Self-Service SSO (B2B)
+
+When viewing an organization details page (`/organizations/[orgName]`), you can create a **Self‑Service SSO access ticket** and be redirected into Auth0’s setup assistant:
+
+- Docs: [Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO)
+- API reference: [Manage Self‑Service SSO (Management API)](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO/manage-self-service-sso#management-api-2)
+
+Notes:
+- The generated `connection_config.name` must match Auth0’s validation rules (no underscores, only alphanumeric and hyphens). The demo sanitizes org names automatically (e.g. `intheory_security` → `intheory-security`).
+
 ## Project Structure
 
 ```
