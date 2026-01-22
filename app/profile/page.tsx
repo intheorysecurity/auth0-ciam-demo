@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import ProfileClient from '@/components/ProfileClient'
+import { getOrgNameFromHostname } from '@/lib/host'
 
 async function getOrganizationBranding(orgName: string) {
   try {
@@ -85,14 +86,9 @@ export default async function ProfilePage() {
 
     // If we're on an org subdomain, include organization=<org_id> in the login redirect.
     // This ensures Auth0 receives the org context even when bypassing the home page login UI.
-    let orgName: string | null = null
+    const orgName: string | null = getOrgNameFromHostname(hostname)
     let orgBranding: any = null
-    const hostNoPort = hostname.split(':')[0]
-    const parts = hostNoPort.split('.')
-    if (parts.length > 2 || (parts.length === 2 && parts[0] !== 'localhost' && parts[0] !== '127')) {
-      orgName = parts[0]
-      orgBranding = await getOrganizationBranding(orgName)
-    }
+    if (orgName) orgBranding = await getOrganizationBranding(orgName)
 
     if (orgBranding?.id) {
       redirect(`${baseUrl}/api/auth/login?organization=${encodeURIComponent(orgBranding.id)}`)
@@ -105,15 +101,11 @@ export default async function ProfilePage() {
   const headersList = await headers()
   const hostname = headersList.get('host') || headersList.get('x-forwarded-host') || 'localhost'
   
-  // Extract organization name from subdomain
-  let orgName: string | null = null
+  // Extract organization name from hostname (supports localhost + ngrok patterns)
+  const orgName: string | null = getOrgNameFromHostname(hostname)
   let orgBranding: any = null
   
-  const parts = hostname.split('.')
-  if (parts.length > 2 || (parts.length === 2 && parts[0] !== 'localhost' && parts[0] !== '127')) {
-    orgName = parts[0]
-    orgBranding = await getOrganizationBranding(orgName)
-  }
+  if (orgName) orgBranding = await getOrganizationBranding(orgName)
 
   return <ProfileClient orgBranding={orgBranding} orgName={orgName} />
 }

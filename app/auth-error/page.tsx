@@ -1,5 +1,6 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
+import { getOrgNameFromHostname } from '@/lib/host'
 
 async function getOrganizationBranding(orgName: string) {
   try {
@@ -72,15 +73,10 @@ export default async function AuthErrorPage({
   const errorDescription = searchParams?.error_description || ''
 
   // Extract org name from subdomain (if present) so we can show branding/logo.
-  let orgName: string | null = null
   let orgBranding: any = null
 
-  const hostNoPort = hostname.split(':')[0]
-  const parts = hostNoPort.split('.')
-  if (parts.length > 2 || (parts.length === 2 && parts[0] !== 'localhost' && parts[0] !== '127')) {
-    orgName = parts[0]
-    orgBranding = await getOrganizationBranding(orgName)
-  }
+  const orgName: string | null = getOrgNameFromHostname(hostname)
+  if (orgName) orgBranding = await getOrganizationBranding(orgName)
 
   const brandingStyles = orgBranding?.branding
     ? `

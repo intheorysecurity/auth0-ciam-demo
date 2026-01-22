@@ -49,6 +49,7 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
    - `AUTH0_MANAGEMENT_API_CLIENT_ID`: Management API Client ID
    - `AUTH0_MANAGEMENT_API_CLIENT_SECRET`: Management API Client Secret
    - `AUTH0_SELF_SERVICE_SSO_PROFILE_ID`: Self‑Service SSO profile ID used to generate SSO access tickets ([Manage Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO/manage-self-service-sso#management-api-2))
+   - `APP_ROOT_HOSTNAME` (recommended for ngrok): Root hostname that should be treated as “no organization”, e.g. `app.intheory.ngrok.app`. Any host matching `app.<org>.ngrok.app` will be treated as an org *except* when `<org>` equals the root hostname’s second label.
 
 3. **Enable connections in Auth0 (no local config file)**:
    - **Root domain (no subdomain)**: the login dropdown is populated dynamically from Auth0 by fetching connections and filtering to those **enabled for your Application Client**.

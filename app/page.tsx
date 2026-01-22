@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import HomeClient from '@/components/HomeClient'
+import { getOrgNameFromHostname } from '@/lib/host'
 
 type ConnectionOption = {
   id: string
@@ -183,14 +184,12 @@ export default async function Home() {
     redirect(`${baseUrl}/profile`)
   }
   
-  // Extract organization name from subdomain
-  let orgName: string | null = null
+  // Extract organization name from hostname (supports localhost + ngrok patterns)
+  const orgName: string | null = getOrgNameFromHostname(hostname)
   let orgBranding: any = null
   let defaultConnections: ConnectionOption[] | null = null
   
-  const parts = hostname.split('.')
-  if (parts.length > 2 || (parts.length === 2 && parts[0] !== 'localhost' && parts[0] !== '127')) {
-    orgName = parts[0]
+  if (orgName) {
     orgBranding = await getOrganizationBranding(orgName)
   } else {
     // Root (no org subdomain): show only connections enabled for this client/application.
