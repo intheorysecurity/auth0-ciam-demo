@@ -115,6 +115,10 @@ const loginHandler = handleLogin((req) => {
   
   return {
     authorizationParams: customParams,
+    // IMPORTANT: keep redirects on the same host as the incoming request.
+    // Using a relative path avoids accidentally falling back to AUTH0_BASE_URL (localhost)
+    // or other normalization issues that can drop the org subdomain.
+    returnTo: '/profile',
   }
 })
 
@@ -123,10 +127,9 @@ const callbackHandler = handleCallback((req) => {
   const baseUrl = getBaseUrlFromRequest(req)
   const redirectUri = `${baseUrl}/api/auth/callback`
   
-  // Set returnTo to preserve subdomain after authentication
-  // Redirect to profile page on the same subdomain to maintain branding
-  // This ensures users stay on org.localhost:3000 instead of being redirected to localhost:3000
-  const returnTo = `${baseUrl}/profile`
+  // IMPORTANT: keep redirects on the same host as the callback request.
+  // Using a relative path guarantees org.localhost stays org.localhost.
+  const returnTo = '/profile'
   
   return {
     redirectUri,
