@@ -1,5 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+function toValidConnectionName(input: string): string {
+  // Auth0 requires: ^[a-zA-Z0-9](-[a-zA-Z0-9]|[a-zA-Z0-9])*$ (no underscores, no trailing '-', no '--')
+  const base = (input || '')
+    .trim()
+    .toLowerCase()
+    // Replace any non-alphanumeric sequence with a single hyphen
+    .replace(/[^a-z0-9]+/g, '-')
+    // Collapse multiple hyphens
+    .replace(/-+/g, '-')
+    // Trim hyphens from ends
+    .replace(/^-+/, '')
+    .replace(/-+$/, '')
+
+  // Ensure non-empty and starts with an alphanumeric
+  return base && /^[a-z0-9]/.test(base) ? base : 'org'
+}
+
 async function getManagementApiToken(): Promise<string> {
   const auth0Domain = process.env.AUTH0_DOMAIN
   const clientId = process.env.AUTH0_MANAGEMENT_API_CLIENT_ID
@@ -78,7 +95,10 @@ export async function POST(
         now.getUTCMinutes()
       ).padStart(2, '0')}${String(now.getUTCSeconds()).padStart(2, '0')}`
 
-    const connectionName = `${orgName}-sso-${safeSuffix}`.toLowerCase()
+    const safeOrgSlug = toValidConnectionName(orgName)
+    // Keep it within Auth0's max length (docs say 128) and ensure it remains valid.
+    const rawConnectionName = `${safeOrgSlug}-sso-${safeSuffix}`
+    const connectionName = toValidConnectionName(rawConnectionName).slice(0, 128)
     const displayName = `${org.display_name || org.name || orgName} SSO`
 
     const ticketBody = {
