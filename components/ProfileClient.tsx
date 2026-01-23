@@ -5,6 +5,7 @@ import { useUser } from '@auth0/nextjs-auth0/client'
 import { useRouter } from 'next/navigation'
 import AccountLinking from '@/components/AccountLinking'
 import MFAEnrollment from '@/components/MFAEnrollment'
+import AppNav from '@/components/AppNav'
 
 interface ProfileClientProps {
   orgBranding: any
@@ -298,30 +299,16 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
       )}
       <div className="profile-container">
         {/* Profile Header Bar */}
-        <div className="login-bar">
-          <div className="login-bar-content">
-            <div className="login-bar-logo">
-              {orgBranding?.branding?.logo ? (
-                <img 
-                  src={orgBranding.branding.logo} 
-                  alt={orgBranding.displayName || orgBranding.name || 'Organization Logo'} 
-                  style={{ 
-                    maxHeight: '40px', 
-                    maxWidth: '200px',
-                    objectFit: 'contain'
-                  }}
-                />
-              ) : (
-                orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'
-              )}
-            </div>
-            <nav className="login-bar-nav">
-              <a href="/profile">Profile</a>
-              {orgName ? <a href={`/organizations/${encodeURIComponent(orgName)}`}>Organization</a> : null}
-              <a href="/api/auth/logout">Logout</a>
-            </nav>
-          </div>
-        </div>
+        <AppNav
+          logoUrl={orgBranding?.branding?.logo || null}
+          logoAlt={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
+          title={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
+          orgName={orgName}
+          isAuthenticated
+          showHome
+          showProfile
+          showAuth
+        />
 
         <div className="profile-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>

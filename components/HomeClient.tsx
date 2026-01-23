@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import LoginPage from '@/components/LoginPage'
+import AppNav from '@/components/AppNav'
 
 interface HomeClientProps {
   orgName: string | null
@@ -40,30 +41,15 @@ export default function HomeClient({ orgName, orgBranding, defaultConnections }:
       )}
     <div className="welcome-container">
       {/* Login Bar */}
-      <div className="login-bar">
-        <div className="login-bar-content">
-          <div className="login-bar-logo">
-            {orgBranding?.branding?.logo ? (
-              <img 
-                src={orgBranding.branding.logo} 
-                alt={orgBranding.displayName || orgBranding.name || 'Organization Logo'} 
-                style={{ 
-                  maxHeight: '40px', 
-                  maxWidth: '200px',
-                  objectFit: 'contain'
-                }}
-              />
-            ) : (
-              orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'
-            )}
-          </div>
-          <nav className="login-bar-nav">
-            <a href="#features">Features</a>
-            <a href="#security">Security</a>
-            <a href="#support">Support</a>
-          </nav>
-        </div>
-      </div>
+      <AppNav
+        logoUrl={orgBranding?.branding?.logo || null}
+        logoAlt={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
+        title={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
+        orgName={orgName}
+        showHome
+        showProfile
+        showAuth
+      />
 
       {/* Welcome Hero Section */}
       <div className="welcome-hero">

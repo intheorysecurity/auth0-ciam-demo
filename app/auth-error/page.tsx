@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import { getOrgNameCandidatesFromHostname } from '@/lib/host'
+import AppNav from '@/components/AppNav'
 
 async function getOrganizationBranding(orgName: string) {
   try {
@@ -101,22 +102,15 @@ export default async function AuthErrorPage({
       {brandingStyles && <style dangerouslySetInnerHTML={{ __html: brandingStyles }} />}
 
       <div className="welcome-container">
-        <div className="login-bar">
-          <div className="login-bar-content">
-            <div className="login-bar-logo">
-              {orgBranding?.branding?.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={orgBranding.branding.logo}
-                  alt={orgBranding.displayName || orgBranding.name || 'Organization Logo'}
-                  style={{ maxHeight: '40px', maxWidth: '200px', objectFit: 'contain' }}
-                />
-              ) : (
-                orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'
-              )}
-            </div>
-          </div>
-        </div>
+        <AppNav
+          logoUrl={orgBranding?.branding?.logo || null}
+          logoAlt={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
+          title={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
+          orgName={orgName}
+          showHome
+          showProfile
+          showAuth
+        />
 
         <div style={{ maxWidth: 860, margin: '3rem auto', padding: '0 1.5rem' }}>
           <div

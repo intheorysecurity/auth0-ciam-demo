@@ -14,6 +14,7 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
 
 - **Flexible Login Options**: Dropdown menu to select from database and passwordless connections
 - **Organization-Specific Branding**: Dynamic branding based on subdomain (e.g., `org.localhost`)
+- **Organization member management**: On the org details page, view **active members + their roles** and **pending invitations**, and invite new users to the org
 - **Account Linking**: Link/unlink social media accounts (Google, Facebook, X/Twitter)
 - **Self-Service SSO (B2B)**: Create a Self‑Service SSO access ticket for an organization and redirect customer admins to Auth0’s SSO setup assistant ([Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO))
 - **Self-Service MFA Enrollment**: Users can enroll in SMS, Email, or TOTP (Authenticator App) MFA factors
@@ -73,6 +74,9 @@ A comprehensive Customer Identity and Access Management (CIAM) demo application 
      - `read:authentication_methods` (required for viewing enrolled MFA factors)
      - `read:organizations`
      - `read:organization_members`
+     - `read:organization_member_roles`
+     - `read:organization_invitations`
+     - `create:organization_invitations`
      - `read:connections`
      - Self‑Service SSO ticket creation uses the Management API Self‑Service SSO endpoints (see the docs for the required permissions/scopes in your tenant): [Manage Self‑Service SSO](https://auth0.com/docs/authenticate/enterprise-connections/self-service-SSO/manage-self-service-sso#management-api-2)
    - Use the Client ID and Client Secret in your `.env.local`
@@ -150,6 +154,24 @@ When viewing an organization details page (`/organizations/[orgName]`), you can 
 Notes:
 - The generated `connection_config.name` must match Auth0’s validation rules (no underscores, only alphanumeric and hyphens). The demo sanitizes org names automatically (e.g. `intheory_security` → `intheory-security`).
 
+## Organization members & invitations
+
+When viewing an organization details page (`/organizations/[orgName]`), the demo can:
+
+- Show **Active members** (with their **organization roles**)
+- Show **Pending invitations**
+- Invite users to the organization
+
+This is powered by these Auth0 Management API endpoints:
+
+- **Members**: `GET /api/v2/organizations/{id}/members` ([Get organization members](https://auth0.com/docs/api/management/v2/organizations/get-organization-members))
+- **Member roles**: `GET /api/v2/organizations/{id}/members/{user_id}/roles` ([Retrieve member roles](https://auth0.com/docs/manage-users/organizations/configure-organizations/retrieve-member-roles))
+- **Invitations list**: `GET /api/v2/organizations/{id}/invitations` ([Get invitations](https://auth0.com/docs/api/management/v2/organizations/get-invitations))
+- **Create invitation**: `POST /api/v2/organizations/{id}/invitations` ([Create invitation](https://auth0.com/docs/api/management/v2/organizations/post-invitations))
+
+Notes:
+- Some Auth0 tenants enforce `inviter` as a required property; this demo always sends `inviter.name` (defaulting to the logged-in user).
+
 ## Project Structure
 
 ```
@@ -165,6 +187,7 @@ auth0-ciam-demo/
 │   └── globals.css              # Global styles
 ├── components/
 │   ├── LoginPage.tsx            # Login component with connection dropdown
+│   ├── AppNav.tsx               # Shared navigation bar (shows Login/Logout based on auth)
 │   ├── AccountLinking.tsx      # Account linking component
 │   └── MFAEnrollment.tsx        # MFA enrollment component
 ├── package.json
