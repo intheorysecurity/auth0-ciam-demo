@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
     const clientSecret = process.env.AUTH0_CLIENT_SECRET
     // Use dynamic base URL from request to include subdomain if present
     // This must match the redirect_uri used in the authorization request
-    const url = new URL(request.url)
-    const baseUrl = `${url.protocol}//${url.host}`
+    const requesturl = new URL(request.url)
+    const baseUrl = `${requesturl.protocol}//${requesturl.host}`
     const redirectUri = `${baseUrl}/api/auth/link-callback`
 
     const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {
