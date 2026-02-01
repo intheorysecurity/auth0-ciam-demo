@@ -156,8 +156,11 @@ const authHandler = handleAuth({
 // Export GET handler that wraps the auth handler
 export async function GET(
   request: NextRequest,
-  context: { params: { auth0: string[] } }
+  context: { params: Promise<{ auth0: string[] }> }
 ) {
+  const resolvedParams = await context.params
+  const ctx = { params: resolvedParams } as any
+
   // Extract base URL from the actual NextRequest (this has the full hostname)
   // Use headers to get the actual hostname (including subdomain)
   const host =
@@ -172,7 +175,7 @@ export async function GET(
   // handle it gracefully by redirecting to the home page and showing the error there.
   // Example:
   // /api/auth/callback?error=invalid_request&error_description=the%20connection%20is%20not%20enabled
-  if (context?.params?.auth0?.[0] === 'callback') {
+  if (ctx?.params?.auth0?.[0] === 'callback') {
     const error = request.nextUrl.searchParams.get('error')
     if (error) {
       const description = request.nextUrl.searchParams.get('error_description') || ''
@@ -185,11 +188,11 @@ export async function GET(
 
   // Call the auth handler with both request and context
   try {
-    return await authHandler(request, context)
+    return await authHandler(request, ctx)
   } catch (err: any) {
     // Common failure mode when cookies are not set/sent back to the callback route.
     // Example: "Missing state cookie from login request"
-    if (context?.params?.auth0?.[0] === 'callback') {
+    if (ctx?.params?.auth0?.[0] === 'callback') {
       const redirectTo = new URL('/auth-error', baseUrl)
       redirectTo.searchParams.set('error', err?.code || 'callback_handler_failed')
       const description =

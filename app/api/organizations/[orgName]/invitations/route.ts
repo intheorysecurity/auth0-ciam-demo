@@ -53,8 +53,10 @@ async function resolveOrgIdByName(orgName: string, auth0Domain: string, manageme
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orgName: string } }
+  context: { params: Promise<{ orgName: string }> }
 ) {
+  const { orgName } = await context.params
+  // @ts-ignore - getSession works with NextRequest in App Router
   const session = await getSession(request)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -67,7 +69,7 @@ export async function GET(
 
   try {
     const managementApiToken = await getManagementApiToken()
-    const orgLookup = await resolveOrgIdByName(params.orgName, auth0Domain, managementApiToken)
+    const orgLookup = await resolveOrgIdByName(orgName, auth0Domain, managementApiToken)
     if (!orgLookup.ok) {
       return NextResponse.json(
         { error: 'Organization not found', details: orgLookup.errorText },
@@ -114,9 +116,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orgName: string } }
+  context: { params: Promise<{ orgName: string }> }
 ) {
-  const session = await getSession(request as any)
+  const { orgName } = await context.params
+  // @ts-ignore - getSession works with NextRequest in App Router
+  const session = await getSession(request)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -151,7 +155,7 @@ export async function POST(
 
   try {
     const managementApiToken = await getManagementApiToken()
-    const orgLookup = await resolveOrgIdByName(params.orgName, auth0Domain, managementApiToken)
+    const orgLookup = await resolveOrgIdByName(orgName, auth0Domain, managementApiToken)
     if (!orgLookup.ok) {
       return NextResponse.json(
         { error: 'Organization not found', details: orgLookup.errorText },

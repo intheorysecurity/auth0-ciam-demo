@@ -3,15 +3,16 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession(request as any)
+    // @ts-ignore - getSession works with NextRequest in App Router
+    const session = await getSession(request)
     
     if (!session || !session.user) {
       return NextResponse.redirect(new URL('/api/auth/login', request.url))
     }
 
-    const url = new URL(request.url)
-    const code = url.searchParams.get('code')
-    const state = url.searchParams.get('state')
+    const requestUrl = new URL(request.url)
+    const code = requestUrl.searchParams.get('code')
+    const state = requestUrl.searchParams.get('state')
     
     if (!code || !state) {
       return NextResponse.redirect(new URL('/profile?error=missing_params', request.url))
@@ -35,8 +36,7 @@ export async function GET(request: NextRequest) {
     const clientSecret = process.env.AUTH0_CLIENT_SECRET
     // Use dynamic base URL from request to include subdomain if present
     // This must match the redirect_uri used in the authorization request
-    const requesturl = new URL(request.url)
-    const baseUrl = `${requesturl.protocol}//${requesturl.host}`
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`
     const redirectUri = `${baseUrl}/api/auth/link-callback`
 
     const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {

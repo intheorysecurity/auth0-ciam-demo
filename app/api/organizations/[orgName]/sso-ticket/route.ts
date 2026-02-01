@@ -44,7 +44,7 @@ async function getManagementApiToken(): Promise<string> {
 
 export async function POST(
   _request: NextRequest,
-  { params }: { params: { orgName: string } }
+  context: { params: Promise<{ orgName: string }> }
 ) {
   const auth0Domain = process.env.AUTH0_DOMAIN
   const selfServiceProfileId = process.env.AUTH0_SELF_SERVICE_SSO_PROFILE_ID
@@ -60,7 +60,7 @@ export async function POST(
   }
 
   try {
-    const { orgName } = params
+    const { orgName } = await context.params
     const managementApiToken = await getManagementApiToken()
 
     // Look up organization ID by name (we attach it to enabled_organizations).

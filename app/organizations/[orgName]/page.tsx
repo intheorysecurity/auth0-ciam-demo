@@ -45,14 +45,14 @@ type OrgInvitationRow = {
 export default async function OrganizationDetailsPage({
   params,
 }: {
-  params: { orgName: string }
+  params: Promise<{ orgName: string }>
 }) {
   const session = await getSession()
 
   const headersList = await headers()
   const baseUrl = getBaseUrlFromHeaders(headersList)
 
-  const orgName = params.orgName
+  const { orgName } = await params
 
   const resp = await fetch(`${baseUrl}/api/organizations/${encodeURIComponent(orgName)}`, {
     cache: 'no-store',

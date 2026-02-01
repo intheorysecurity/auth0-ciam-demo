@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticator } from 'otplib'
 
 export async function POST(request: NextRequest) {
+  // @ts-ignore - getSession works with NextRequest in App Router
   const session = await getSession(request)
   
   if (!session || !session.user) {

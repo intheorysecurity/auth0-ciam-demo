@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orgName: string } }
+  context: { params: Promise<{ orgName: string }> }
 ) {
-  const { orgName } = params
+  const { orgName } = await context.params
   const auth0Domain = process.env.AUTH0_DOMAIN
   const managementApiToken = await getManagementApiToken()
 

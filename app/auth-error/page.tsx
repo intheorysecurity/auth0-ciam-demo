@@ -63,15 +63,16 @@ async function getManagementApiToken(): Promise<string> {
 export default async function AuthErrorPage({
   searchParams,
 }: {
-  searchParams: { error?: string; error_description?: string }
+  searchParams: Promise<{ error?: string; error_description?: string }>
 }) {
   const headersList = await headers()
   const hostname = headersList.get('host') || headersList.get('x-forwarded-host') || 'localhost'
   const protocol = headersList.get('x-forwarded-proto')?.split(',')[0].trim() || 'http'
   const baseUrl = `${protocol}://${hostname}`
 
-  const error = searchParams?.error || 'unknown_error'
-  const errorDescription = searchParams?.error_description || ''
+  const sp = await searchParams
+  const error = sp?.error || 'unknown_error'
+  const errorDescription = sp?.error_description || ''
 
   // Extract org name from subdomain (if present) so we can show branding/logo.
   let orgBranding: any = null

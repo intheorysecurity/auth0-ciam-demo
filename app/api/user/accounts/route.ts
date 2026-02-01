@@ -2,6 +2,7 @@ import { getSession } from '@auth0/nextjs-auth0'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
+  // @ts-ignore - getSession works with NextRequest in App Router
   const session = await getSession(request)
   
   if (!session || !session.user) {

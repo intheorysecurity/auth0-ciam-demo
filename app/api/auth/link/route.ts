@@ -13,6 +13,7 @@ function getBaseUrlFromRequest(request: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
+  // @ts-ignore - getSession works with NextRequest in App Router
   const session = await getSession(request)
   
   if (!session || !session.user) {

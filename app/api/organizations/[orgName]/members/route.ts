@@ -60,8 +60,9 @@ async function mapWithConcurrency<T, R>(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orgName: string } }
+  context: { params: Promise<{ orgName: string }> }
 ) {
+  const { orgName } = await context.params
   // @ts-ignore - getSession works with NextRequest in App Router
   const session = await getSession(request)
   if (!session?.user) {
@@ -78,7 +79,7 @@ export async function GET(
 
     // Resolve org by name
     const orgResp = await fetch(
-      `https://${auth0Domain}/api/v2/organizations/name/${encodeURIComponent(params.orgName)}`,
+      `https://${auth0Domain}/api/v2/organizations/name/${encodeURIComponent(orgName)}`,
       {
         headers: {
           Authorization: `Bearer ${managementApiToken}`,
