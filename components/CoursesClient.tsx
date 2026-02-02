@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Course } from '@/lib/courses'
 
 type CoursesClientProps = {
@@ -10,8 +10,9 @@ type CoursesClientProps = {
 }
 
 export default function CoursesClient({ courses, isAuthenticated, organizationId }: CoursesClientProps) {
-  const [enrollingId, setEnrollingId] = useState<string | null>(null)
+  const [actionId, setActionId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [enrolledCourses, setEnrolledCourses] = useState<Set<string>>(() => new Set())
 
   const loginHref = useMemo(() => {
     const params = new URLSearchParams()
@@ -20,9 +21,31 @@ export default function CoursesClient({ courses, isAuthenticated, organizationId
     return `/api/auth/login?${params.toString()}`
   }, [organizationId])
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setEnrolledCourses(new Set())
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const resp = await fetch('/api/courses/enrollment', { cache: 'no-store' })
+        const data = await resp.json().catch(() => null)
+        if (!resp.ok) return
+        const list = Array.isArray(data?.enrolled_courses) ? data.enrolled_courses : []
+        if (!cancelled) setEnrolledCourses(new Set(list.filter((x: any) => typeof x === 'string')))
+      } catch {
+        // ignore (demo)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated])
+
   async function enroll(courseId: string) {
     setMessage(null)
-    setEnrollingId(courseId)
+    setActionId(courseId)
     try {
       const resp = await fetch('/api/courses/enroll', {
         method: 'POST',
@@ -35,11 +58,38 @@ export default function CoursesClient({ courses, isAuthenticated, organizationId
         setMessage({ type: 'error', text: details || data?.error || 'Enrollment failed.' })
         return
       }
+      const list = Array.isArray(data?.enrolled_courses) ? data.enrolled_courses : null
+      if (list) setEnrolledCourses(new Set(list.filter((x: any) => typeof x === 'string')))
       setMessage({ type: 'success', text: 'You are enrolled. See you in class.' })
     } catch (err: any) {
       setMessage({ type: 'error', text: err?.message || 'Enrollment failed.' })
     } finally {
-      setEnrollingId(null)
+      setActionId(null)
+    }
+  }
+
+  async function unenroll(courseId: string) {
+    setMessage(null)
+    setActionId(courseId)
+    try {
+      const resp = await fetch('/api/courses/unenroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      })
+      const data = await resp.json().catch(() => null)
+      if (!resp.ok) {
+        const details = typeof data?.details === 'string' ? data.details : ''
+        setMessage({ type: 'error', text: details || data?.error || 'Unenroll failed.' })
+        return
+      }
+      const list = Array.isArray(data?.enrolled_courses) ? data.enrolled_courses : null
+      if (list) setEnrolledCourses(new Set(list.filter((x: any) => typeof x === 'string')))
+      setMessage({ type: 'success', text: 'You are unenrolled.' })
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err?.message || 'Unenroll failed.' })
+    } finally {
+      setActionId(null)
     }
   }
 
@@ -63,6 +113,10 @@ export default function CoursesClient({ courses, isAuthenticated, organizationId
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
         {courses.map((c) => (
+          (() => {
+            const isEnrolled = enrolledCourses.has(c.id)
+            const isBusy = actionId === c.id
+            return (
           <div
             key={c.id}
             style={{
@@ -84,20 +138,21 @@ export default function CoursesClient({ courses, isAuthenticated, organizationId
               {isAuthenticated ? (
                 <button
                   type="button"
-                  onClick={() => enroll(c.id)}
-                  disabled={enrollingId === c.id}
+                  onClick={() => (isEnrolled ? unenroll(c.id) : enroll(c.id))}
+                  disabled={isBusy}
                   style={{
                     padding: '0.6rem 1rem',
                     borderRadius: 10,
                     border: 'none',
-                    background: 'var(--primary-color, #2f242c)',
-                    color: 'white',
+                    background: isEnrolled ? 'white' : 'var(--primary-color, #2f242c)',
+                    color: isEnrolled ? '#2f242c' : 'white',
+                    boxShadow: isEnrolled ? 'inset 0 0 0 1px #e0e0e0' : undefined,
                     fontWeight: 800,
-                    cursor: enrollingId === c.id ? 'not-allowed' : 'pointer',
-                    opacity: enrollingId === c.id ? 0.7 : 1,
+                    cursor: isBusy ? 'not-allowed' : 'pointer',
+                    opacity: isBusy ? 0.7 : 1,
                   }}
                 >
-                  {enrollingId === c.id ? 'Enrolling…' : 'Enroll'}
+                  {isBusy ? (isEnrolled ? 'Unenrolling…' : 'Enrolling…') : isEnrolled ? 'Unenroll' : 'Enroll'}
                 </button>
               ) : (
                 <a
@@ -118,6 +173,8 @@ export default function CoursesClient({ courses, isAuthenticated, organizationId
               )}
             </div>
           </div>
+            )
+          })()
         ))}
       </div>
     </div>
