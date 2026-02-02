@@ -115,6 +115,17 @@ const loginHandler = handleLogin((req) => {
   const customParams: Record<string, string> = {
     redirect_uri: callbackUrl,
   }
+
+  // Ensure we request an access token during login by setting an audience.
+  // Priority:
+  // - AUTH0_AUDIENCE (explicit override)
+  // - Management API audience format (demo default): https://<AUTH0_DOMAIN>/api/v2/
+  const defaultAudience =
+    process.env.AUTH0_DOMAIN ? `https://${process.env.AUTH0_DOMAIN}/api/v2/` : ''
+  const audience = (process.env.AUTH0_AUDIENCE || defaultAudience).trim()
+  if (audience) {
+    customParams.audience = audience
+  }
   
   if (organization) customParams.organization = organization
   
