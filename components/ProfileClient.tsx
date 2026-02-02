@@ -20,6 +20,9 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isSendingVerification, setIsSendingVerification] = useState(false)
+  const [acrOk, setAcrOk] = useState<boolean | null>(null)
+  const [acrReauthUrl, setAcrReauthUrl] = useState<string | null>(null)
+  const [isCheckingAcr, setIsCheckingAcr] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -106,6 +109,28 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
     }
   }
 
+  const checkAcrForProfileUpdate = async (): Promise<{
+    ok: boolean
+    reauthUrl?: string | null
+  } | null> => {
+    setIsCheckingAcr(true)
+    try {
+      const resp = await fetch('/api/user/acr', { cache: 'no-store' })
+      const json = await resp.json().catch(() => null)
+      if (!resp.ok) {
+        return null
+      }
+      return {
+        ok: !!json?.ok,
+        reauthUrl: typeof json?.reauthUrl === 'string' ? json.reauthUrl : null,
+      }
+    } catch {
+      return null
+    } finally {
+      setIsCheckingAcr(false)
+    }
+  }
+
   const handleInputChange = (field: string, value: any) => {
     if (field.includes('.')) {
       // Handle nested fields like preferences.theme
@@ -170,6 +195,21 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
     setSaveMessage(null)
 
     try {
+      // Ensure the user has satisfied the required MFA ACR before updating profile.
+      const acrCheck = await checkAcrForProfileUpdate()
+      if (acrCheck && !acrCheck.ok) {
+        setAcrOk(false)
+        setAcrReauthUrl(acrCheck.reauthUrl || null)
+        setSaveMessage({
+          type: 'error',
+          text: 'Multi-factor authentication is required before you can save profile changes.',
+        })
+        if (acrCheck.reauthUrl) {
+          window.location.href = acrCheck.reauthUrl
+        }
+        return
+      }
+
       // Format phone number to E.164 before sending
       const dataToSend: any = { ...formData }
       if (dataToSend.phone_number && dataToSend.phone_number.trim() !== '') {
@@ -204,6 +244,16 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
         setTimeout(() => setSaveMessage(null), 3000)
       } else {
         const error = await response.json()
+        if (error?.error === 'mfa_required' && typeof error?.reauthUrl === 'string') {
+          setAcrOk(false)
+          setAcrReauthUrl(error.reauthUrl)
+          setSaveMessage({
+            type: 'error',
+            text: 'Multi-factor authentication is required before you can save profile changes. Redirecting…',
+          })
+          window.location.href = error.reauthUrl
+          return
+        }
         setSaveMessage({ type: 'error', text: error.error || 'Failed to update profile' })
       }
     } catch (error: any) {
@@ -317,7 +367,18 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
             </h1>
             {!isEditing ? (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={async () => {
+                  setIsEditing(true)
+                  // Check whether the current session meets the required MFA ACR for profile updates.
+                  const result = await checkAcrForProfileUpdate()
+                  if (result) {
+                    setAcrOk(result.ok)
+                    setAcrReauthUrl(result.reauthUrl || null)
+                  } else {
+                    setAcrOk(null)
+                    setAcrReauthUrl(null)
+                  }
+                }}
                 className="btn"
                 style={{ 
                   background: 'var(--primary-color)', 
@@ -336,6 +397,8 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
                 <button
                   onClick={() => {
                     setIsEditing(false)
+                    setAcrOk(null)
+                    setAcrReauthUrl(null)
                     // Reset form data to original values
                     if (userInfo) {
                       setFormData({
@@ -380,13 +443,45 @@ export default function ProfileClient({ orgBranding, orgName }: ProfileClientPro
                     cursor: 'pointer',
                     fontWeight: 600,
                   }}
-                  disabled={isSaving}
+                  disabled={isSaving || isCheckingAcr || acrOk === false}
                 >
-                  {isSaving ? 'Saving...' : 'Save Changes'}
+                  {isSaving ? 'Saving...' : isCheckingAcr ? 'Checking…' : acrOk === false ? 'MFA required' : 'Save Changes'}
                 </button>
               </div>
             )}
           </div>
+
+          {isEditing && acrOk === false ? (
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                marginBottom: '1.5rem',
+                borderRadius: '6px',
+                background: '#fff3cd',
+                color: '#664d03',
+                border: '1px solid #ffecb5',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>
+                Multi-factor authentication is required to save profile changes.
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (acrReauthUrl) window.location.href = acrReauthUrl
+                }}
+                disabled={!acrReauthUrl}
+              >
+                Re-authenticate with MFA
+              </button>
+            </div>
+          ) : null}
 
           {saveMessage && (
             <div

@@ -79,6 +79,9 @@ const loginHandler = handleLogin((req) => {
   let connection: string | null = null
   let returnTo: string | null = null
   let pp: string | null = null
+  let acrValues: string | null = null
+  let prompt: string | null = null
+  let maxAge: string | null = null
   
   if ('url' in req && req.url) {
     // NextRequest (App Router) - use URL API
@@ -89,6 +92,9 @@ const loginHandler = handleLogin((req) => {
       connection = url.searchParams.get('connection')
       returnTo = url.searchParams.get('returnTo')
       pp = url.searchParams.get('pp')
+      acrValues = url.searchParams.get('acr_values')
+      prompt = url.searchParams.get('prompt')
+      maxAge = url.searchParams.get('max_age')
     } catch {
       // URL parsing failed, skip
     }
@@ -99,6 +105,9 @@ const loginHandler = handleLogin((req) => {
     connection = (req.query.connection as string) || null
     returnTo = (req.query.returnTo as string) || null
     pp = (req.query.pp as string) || null
+    acrValues = (req.query.acr_values as string) || null
+    prompt = (req.query.prompt as string) || null
+    maxAge = (req.query.max_age as string) || null
   }
   
   // Build authorization params - include redirect_uri to ensure it matches the request hostname
@@ -121,6 +130,14 @@ const loginHandler = handleLogin((req) => {
 
   // Demo-only progressive profiling toggle: forward pp=1 to /authorize so Actions can detect it.
   if (pp) customParams.pp = pp
+
+  // Allow callers to request step-up auth / MFA via ACR.
+  // Example: acr_values=http://schemas.openid.net/pape/policies/2007/06/multi-factor
+  if (acrValues) customParams.acr_values = acrValues
+
+  // Optional: force re-authentication
+  if (prompt) customParams.prompt = prompt
+  if (maxAge) customParams.max_age = maxAge
 
   // Allow callers to specify a relative returnTo (e.g. /courses). Prevent open redirects.
   const safeReturnTo =

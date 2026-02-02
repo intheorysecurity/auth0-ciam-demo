@@ -1,6 +1,24 @@
 import { getSession } from '@auth0/nextjs-auth0'
 import { NextRequest, NextResponse } from 'next/server'
 
+const REQUIRED_ACR = 'http://schemas.openid.net/pape/policies/2007/06/multi-factor'
+
+function base64UrlToUtf8(input: string): string {
+  const pad = '='.repeat((4 - (input.length % 4)) % 4)
+  const base64 = (input + pad).replace(/-/g, '+').replace(/_/g, '/')
+  return Buffer.from(base64, 'base64').toString('utf8')
+}
+
+function decodeJwtPayload(token: string): any | null {
+  const parts = token.split('.')
+  if (parts.length < 2) return null
+  try {
+    return JSON.parse(base64UrlToUtf8(parts[1]))
+  } catch {
+    return null
+  }
+}
+
 async function getManagementApiToken(): Promise<string> {
   const auth0Domain = process.env.AUTH0_DOMAIN
   const clientId = process.env.AUTH0_MANAGEMENT_API_CLIENT_ID
@@ -35,6 +53,32 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
+    )
+  }
+
+  // Require step-up auth (MFA) before allowing profile updates.
+  // We look for the required ACR in the ID token first, then fall back to access token.
+  const idToken = typeof (session as any)?.idToken === 'string' ? ((session as any).idToken as string) : null
+  const accessToken =
+    typeof (session as any)?.accessToken === 'string' ? ((session as any).accessToken as string) : null
+  const idPayload = idToken ? decodeJwtPayload(idToken) : null
+  const atPayload = accessToken ? decodeJwtPayload(accessToken) : null
+  const acr =
+    (idPayload && typeof idPayload.acr === 'string' && idPayload.acr) ||
+    (atPayload && typeof atPayload.acr === 'string' && atPayload.acr) ||
+    null
+
+  if (acr !== REQUIRED_ACR) {
+    const reauthUrl = `/api/auth/login?returnTo=/profile&acr_values=${encodeURIComponent(REQUIRED_ACR)}&prompt=login&max_age=0`
+    return NextResponse.json(
+      {
+        error: 'mfa_required',
+        message: 'Multi-factor authentication is required to update your profile.',
+        requiredAcr: REQUIRED_ACR,
+        acr,
+        reauthUrl,
+      },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } }
     )
   }
 
