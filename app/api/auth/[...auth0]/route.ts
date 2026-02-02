@@ -77,6 +77,7 @@ const loginHandler = handleLogin((req) => {
   let organization: string | null = null
   let screenHint: string | null = null
   let connection: string | null = null
+  let returnTo: string | null = null
   
   if ('url' in req && req.url) {
     // NextRequest (App Router) - use URL API
@@ -85,6 +86,7 @@ const loginHandler = handleLogin((req) => {
       organization = url.searchParams.get('organization')
       screenHint = url.searchParams.get('screen_hint')
       connection = url.searchParams.get('connection')
+      returnTo = url.searchParams.get('returnTo')
     } catch {
       // URL parsing failed, skip
     }
@@ -93,6 +95,7 @@ const loginHandler = handleLogin((req) => {
     organization = (req.query.organization as string) || null
     screenHint = (req.query.screen_hint as string) || null
     connection = (req.query.connection as string) || null
+    returnTo = (req.query.returnTo as string) || null
   }
   
   // Build authorization params - include redirect_uri to ensure it matches the request hostname
@@ -112,13 +115,17 @@ const loginHandler = handleLogin((req) => {
   if (connection) {
     customParams.connection = resolveAuth0ConnectionName(connection)
   }
+
+  // Allow callers to specify a relative returnTo (e.g. /courses). Prevent open redirects.
+  const safeReturnTo =
+    returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/profile'
   
   return {
     authorizationParams: customParams,
     // IMPORTANT: keep redirects on the same host as the incoming request.
     // Using a relative path avoids accidentally falling back to AUTH0_BASE_URL (localhost)
     // or other normalization issues that can drop the org subdomain.
-    returnTo: '/profile',
+    returnTo: safeReturnTo,
   }
 })
 
@@ -126,14 +133,9 @@ const loginHandler = handleLogin((req) => {
 const callbackHandler = handleCallback((req) => {
   const baseUrl = getBaseUrlFromRequest(req)
   const redirectUri = `${baseUrl}/api/auth/callback`
-  
-  // IMPORTANT: keep redirects on the same host as the callback request.
-  // Using a relative path guarantees org.localhost stays org.localhost.
-  const returnTo = '/profile'
-  
+
   return {
     redirectUri,
-    returnTo,
   }
 })
 

@@ -1,5 +1,4 @@
 import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import HomeClient from '@/components/HomeClient'
 import { getOrgNameCandidatesFromHostname } from '@/lib/host'
@@ -175,14 +174,15 @@ export default async function Home() {
   const headersList = await headers()
   const hostname = headersList.get('host') || headersList.get('x-forwarded-host') || 'localhost'
   const protocol = headersList.get('x-forwarded-proto')?.split(',')[0].trim() || 'http'
-  const baseUrl = `${protocol}://${hostname}`
   
   // Check if user is logged in
   const session = await getSession()
-  if (session?.user) {
-    // Redirect to profile on the same subdomain to preserve branding
-    redirect(`${baseUrl}/profile`)
-  }
+  const isAuthenticated = !!session?.user
+  const userName =
+    (session?.user && typeof (session.user as any).name === 'string' ? (session.user as any).name : '') ||
+    (session?.user && typeof (session.user as any).nickname === 'string' ? (session.user as any).nickname : '') ||
+    (session?.user && typeof (session.user as any).email === 'string' ? (session.user as any).email : '') ||
+    null
   
   // Resolve organization from hostname (generic: try candidates and pick the first org that exists in Auth0)
   const orgNameCandidates = getOrgNameCandidatesFromHostname(hostname)
@@ -204,5 +204,13 @@ export default async function Home() {
     defaultConnections = await getDefaultClientConnections()
   }
 
-  return <HomeClient orgName={orgName} orgBranding={orgBranding} defaultConnections={defaultConnections} />
+  return (
+    <HomeClient
+      orgName={orgName}
+      orgBranding={orgBranding}
+      defaultConnections={defaultConnections}
+      isAuthenticated={isAuthenticated}
+      userName={userName}
+    />
+  )
 }

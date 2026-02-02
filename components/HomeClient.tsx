@@ -8,9 +8,17 @@ interface HomeClientProps {
   orgName: string | null
   orgBranding: any
   defaultConnections?: Array<{ id: string; name: string; displayName: string }> | null
+  isAuthenticated?: boolean
+  userName?: string | null
 }
 
-export default function HomeClient({ orgName, orgBranding, defaultConnections }: HomeClientProps) {
+export default function HomeClient({
+  orgName,
+  orgBranding,
+  defaultConnections,
+  isAuthenticated = false,
+  userName,
+}: HomeClientProps) {
   // Apply branding colors immediately (before useEffect runs)
   const brandingStyles = orgBranding?.branding ? `
     :root {
@@ -46,6 +54,7 @@ export default function HomeClient({ orgName, orgBranding, defaultConnections }:
         logoAlt={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
         title={orgBranding?.displayName || orgBranding?.name || 'CIAM Platform'}
         orgName={orgName}
+        isAuthenticated={isAuthenticated}
         showHome
         showProfile
         showAuth
@@ -90,8 +99,59 @@ export default function HomeClient({ orgName, orgBranding, defaultConnections }:
           </div>
         </div>
 
-        {/* Login Panel */}
-        <LoginPage orgName={orgName} orgBranding={orgBranding} defaultConnections={defaultConnections} />
+        {/* Right-side panel */}
+        {isAuthenticated ? (
+          <div className="login-panel">
+            <div className="login-panel-header">
+              <h2 className="login-panel-title">Welcome back</h2>
+              <p className="login-panel-subtitle" style={{ marginTop: '0.25rem' }}>
+                {userName ? (
+                  <>
+                    Signed in as <strong>{userName}</strong>.
+                  </>
+                ) : (
+                  'You are signed in.'
+                )}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <a
+                href="/profile"
+                style={{
+                  display: 'inline-block',
+                  padding: '0.6rem 1rem',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: 'var(--primary-color, #2f242c)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontWeight: 800,
+                }}
+              >
+                Go to profile
+              </a>
+              <a
+                href="/courses"
+                style={{
+                  display: 'inline-block',
+                  padding: '0.6rem 1rem',
+                  borderRadius: 10,
+                  border: '1px solid #e0e0e0',
+                  background: 'white',
+                  color: '#2f242c',
+                  textDecoration: 'none',
+                  fontWeight: 700,
+                }}
+              >
+                View courses
+              </a>
+            </div>
+
+          </div>
+        ) : (
+          <LoginPage orgName={orgName} orgBranding={orgBranding} defaultConnections={defaultConnections} />
+        )}
       </div>
     </div>
     </>

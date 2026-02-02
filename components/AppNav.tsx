@@ -10,6 +10,7 @@ type AppNavProps = {
   orgName?: string | null
   isAuthenticated?: boolean
   showHome?: boolean
+  showCourses?: boolean
   showProfile?: boolean
   showAuth?: boolean
 }
@@ -21,6 +22,7 @@ export default function AppNav({
   orgName,
   isAuthenticated,
   showHome = true,
+  showCourses = true,
   showProfile = true,
   showAuth = true,
 }: AppNavProps) {
@@ -44,6 +46,7 @@ export default function AppNav({
         </div>
         <nav className="login-bar-nav">
           {showHome ? <Link href="/">Home</Link> : null}
+          {showCourses ? <Link href="/courses">Courses</Link> : null}
           {showProfile ? <Link href="/profile">Profile</Link> : null}
           {orgName ? <Link href={`/organizations/${encodeURIComponent(orgName)}`}>Organization</Link> : null}
           {showAuth ? (

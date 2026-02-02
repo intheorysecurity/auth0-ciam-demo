@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { UserProvider } from '@auth0/nextjs-auth0/client'
+import TokenDebugMount from '@/components/TokenDebugMount'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body>
         <UserProvider>
           {children}
+          <TokenDebugMount />
         </UserProvider>
       </body>
     </html>
