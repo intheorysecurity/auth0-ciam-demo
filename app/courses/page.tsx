@@ -1,4 +1,5 @@
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import AppNav from '@/components/AppNav'
 import CoursesClient from '@/components/CoursesClient'
@@ -92,6 +93,25 @@ export default async function CoursesPage() {
 
   const session = await getSession()
   const isAuthenticated = !!session?.user
+
+  // Demo progressive profiling:
+  // If an authenticated user is missing required profile info, bounce them back through Auth0.
+  // This adds `pp=1` to the /authorize request (handled by the Post-Login Action) and returns
+  // them back to /courses afterwards.
+  if (isAuthenticated) {
+    const givenName =
+      session?.user && typeof (session.user as any).given_name === 'string'
+        ? ((session.user as any).given_name as string).trim()
+        : ''
+    const familyName =
+      session?.user && typeof (session.user as any).family_name === 'string'
+        ? ((session.user as any).family_name as string).trim()
+        : ''
+
+    if (!givenName || !familyName) {
+      redirect('/api/auth/login?pp=1&returnTo=/courses')
+    }
+  }
 
   return (
     <>

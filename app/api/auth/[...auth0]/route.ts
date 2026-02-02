@@ -78,6 +78,7 @@ const loginHandler = handleLogin((req) => {
   let screenHint: string | null = null
   let connection: string | null = null
   let returnTo: string | null = null
+  let pp: string | null = null
   
   if ('url' in req && req.url) {
     // NextRequest (App Router) - use URL API
@@ -87,6 +88,7 @@ const loginHandler = handleLogin((req) => {
       screenHint = url.searchParams.get('screen_hint')
       connection = url.searchParams.get('connection')
       returnTo = url.searchParams.get('returnTo')
+      pp = url.searchParams.get('pp')
     } catch {
       // URL parsing failed, skip
     }
@@ -96,6 +98,7 @@ const loginHandler = handleLogin((req) => {
     screenHint = (req.query.screen_hint as string) || null
     connection = (req.query.connection as string) || null
     returnTo = (req.query.returnTo as string) || null
+    pp = (req.query.pp as string) || null
   }
   
   // Build authorization params - include redirect_uri to ensure it matches the request hostname
@@ -115,6 +118,9 @@ const loginHandler = handleLogin((req) => {
   if (connection) {
     customParams.connection = resolveAuth0ConnectionName(connection)
   }
+
+  // Demo-only progressive profiling toggle: forward pp=1 to /authorize so Actions can detect it.
+  if (pp) customParams.pp = pp
 
   // Allow callers to specify a relative returnTo (e.g. /courses). Prevent open redirects.
   const safeReturnTo =
