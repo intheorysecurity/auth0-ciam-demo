@@ -7,12 +7,21 @@ type CoursesClientProps = {
   courses: Course[]
   isAuthenticated: boolean
   organizationId?: string | null
+  requireProfileCompletion?: boolean
+  profileCompletionUrl?: string | null
 }
 
-export default function CoursesClient({ courses, isAuthenticated, organizationId }: CoursesClientProps) {
+export default function CoursesClient({
+  courses,
+  isAuthenticated,
+  organizationId,
+  requireProfileCompletion = false,
+  profileCompletionUrl = null,
+}: CoursesClientProps) {
   const [actionId, setActionId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [enrolledCourses, setEnrolledCourses] = useState<Set<string>>(() => new Set())
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
 
   const loginHref = useMemo(() => {
     const params = new URLSearchParams()
@@ -42,6 +51,14 @@ export default function CoursesClient({ courses, isAuthenticated, organizationId
       cancelled = true
     }
   }, [isAuthenticated])
+
+  useEffect(() => {
+    if (requireProfileCompletion) {
+      setProfileModalOpen(true)
+    } else {
+      setProfileModalOpen(false)
+    }
+  }, [requireProfileCompletion])
 
   async function enroll(courseId: string) {
     setMessage(null)
@@ -95,6 +112,56 @@ export default function CoursesClient({ courses, isAuthenticated, organizationId
 
   return (
     <div style={{ marginTop: '1.5rem' }}>
+      {profileModalOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(2px)',
+            display: 'grid',
+            placeItems: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 'min(720px, calc(100vw - 32px))',
+              borderRadius: 14,
+              border: '1px solid rgba(0,0,0,0.12)',
+              background: 'white',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+              padding: 18,
+            }}
+          >
+            <div style={{ fontWeight: 900, fontSize: 16, color: '#2f242c' }}>
+              More profile info required
+            </div>
+            <div style={{ marginTop: 8, color: '#2f242c', opacity: 0.85, lineHeight: 1.45 }}>
+              Before you can access courses, we need a little more information (first name and last name).
+              Click Continue to complete your profile.
+            </div>
+
+            <div style={{ marginTop: 14, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: 'var(--primary-color, #2f242c)', color: 'white', border: 'none' }}
+                onClick={() => {
+                  const href = profileCompletionUrl || '/api/auth/login?pp=1&returnTo=/courses'
+                  window.location.href = href
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {message ? (
         <div
           style={{
