@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@auth0/nextjs-auth0'
 import OrganizationInvitesClient from '@/components/OrganizationInvitesClient'
 import AppNav from '@/components/AppNav'
+import SelfServiceSsoPopup from '@/components/SelfServiceSsoPopup'
 
 type OrgDetails = {
   id: string
@@ -544,28 +545,7 @@ export default async function OrganizationDetailsPage({
                   .
                 </p>
 
-                <form
-                  action={`/api/organizations/${encodeURIComponent(orgName)}/sso-ticket`}
-                  method="POST"
-                  style={{ marginTop: '1rem' }}
-                >
-                  <button
-                    type="submit"
-                    style={{
-                      display: 'inline-block',
-                      padding: '0.6rem 1rem',
-                      borderRadius: 10,
-                      border: 'none',
-                      background: 'var(--primary-color, #2f242c)',
-                      color: 'white',
-                      textDecoration: 'none',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Create SSO setup ticket
-                  </button>
-                </form>
+                <SelfServiceSsoPopup orgName={orgName} />
               </div>
             </div>
           </div>

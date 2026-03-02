@@ -43,7 +43,7 @@ async function getManagementApiToken(): Promise<string> {
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ orgName: string }> }
 ) {
   const auth0Domain = process.env.AUTH0_DOMAIN
@@ -158,7 +158,17 @@ export async function POST(
       )
     }
 
-    // 302 to Auth0 self-service assistant URL
+    const accept = request.headers.get('accept') || ''
+    const wantsJson = accept.includes('application/json')
+
+    if (wantsJson) {
+      return NextResponse.json(
+        { ok: true, ticketUrl },
+        { headers: { 'Cache-Control': 'no-store' } }
+      )
+    }
+
+    // Default: 302 to Auth0 self-service assistant URL
     return NextResponse.redirect(new URL(ticketUrl), { status: 302 })
   } catch (error: any) {
     console.error('Error creating Self-Service SSO ticket:', error)
