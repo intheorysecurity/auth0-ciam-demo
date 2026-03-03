@@ -109,11 +109,12 @@ async function getDefaultClientConnections(): Promise<ConnectionOption[] | null>
   try {
     const managementApiToken = await getManagementApiToken()
 
-    // Fetch all connections (include enabled_clients so we can filter by this app's client_id).
-    // If enabled_clients is not present/usable, we fall back to per-connection client lookup:
-    // https://auth0.com/docs/api/management/v2/connections/get-connection-clients
+    // Fetch all connections.
+    // NOTE (Auth0 Jan 2026): enabled_clients is deprecated/absent for many tenants in GET /api/v2/connections.
+    // We therefore do NOT rely on enabled_clients and instead filter using:
+    // GET /api/v2/connections/{id}/clients (Get enabled clients for a connection).
     const resp = await fetch(
-      `https://${auth0Domain}/api/v2/connections?per_page=100&include_totals=false&include_fields=true&fields=id,name,display_name,enabled_clients`,
+      `https://${auth0Domain}/api/v2/connections?per_page=100&include_totals=false&include_fields=true&fields=id,name,display_name`,
       {
         headers: {
           Authorization: `Bearer ${managementApiToken}`,
@@ -124,20 +125,34 @@ async function getDefaultClientConnections(): Promise<ConnectionOption[] | null>
     )
 
     if (!resp.ok) return null
-    const connections: any[] = await resp.json()
+    const raw = await resp.json().catch(() => null)
+    const connections: any[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray((raw as any)?.connections)
+        ? (raw as any).connections
+        : []
 
-    const hasEnabledClientsField = connections.some((c) => Array.isArray(c?.enabled_clients))
-    if (hasEnabledClientsField) {
-      return connections
-        .filter((c) => Array.isArray(c.enabled_clients) && c.enabled_clients.includes(clientId))
-        .map((c) => ({
-          id: c.id,
-          name: c.name,
-          displayName: c.display_name || c.name,
-        }))
+    if (!Array.isArray(connections) || connections.length === 0) {
+      return []
     }
 
-    // Fallback: check enabled clients for each connection (more expensive).
+    const connectionHasClient = (clientsRaw: any): boolean => {
+      const list: any[] = Array.isArray(clientsRaw)
+        ? clientsRaw
+        : Array.isArray(clientsRaw?.clients)
+          ? clientsRaw.clients
+          : []
+
+      return list.some((cl) => {
+        // Some tenants return a list of client_id strings.
+        if (typeof cl === 'string') return cl === clientId
+        // Others return objects like { client_id, name }.
+        if (!cl || typeof cl !== 'object') return false
+        return cl.client_id === clientId || cl.clientId === clientId || cl.id === clientId
+      })
+    }
+
+    // Filter enabled connections for this application (per-connection lookup; more expensive but reliable).
     const results: ConnectionOption[] = []
     for (const c of connections) {
       if (!c?.id || !c?.name) continue
@@ -152,8 +167,8 @@ async function getDefaultClientConnections(): Promise<ConnectionOption[] | null>
         }
       )
       if (!clientsResp.ok) continue
-      const clients: any[] = await clientsResp.json()
-      const enabled = clients.some((cl) => cl?.client_id === clientId)
+      const clientsRaw = await clientsResp.json().catch(() => null)
+      const enabled = connectionHasClient(clientsRaw)
       if (enabled) {
         results.push({
           id: c.id,
