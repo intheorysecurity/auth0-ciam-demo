@@ -224,7 +224,23 @@ export async function GET(
 
   // Call the auth handler with both request and context
   try {
-    return await authHandler(request, ctx)
+    const res = await authHandler(request, ctx)
+
+    // Remember last explicitly-selected connection (connection NAME for /authorize).
+    // This is useful for later step-up flows (e.g., profile update MFA) so we don’t default to the wrong DB.
+    if (ctx?.params?.auth0?.[0] === 'login') {
+      const conn = request.nextUrl.searchParams.get('connection')
+      if (conn && typeof (res as any)?.cookies?.set === 'function') {
+        ;(res as any).cookies.set('last_auth0_connection', resolveAuth0ConnectionName(conn), {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+        })
+      }
+    }
+
+    return res
   } catch (err: any) {
     // Common failure mode when cookies are not set/sent back to the callback route.
     // Example: "Missing state cookie from login request"

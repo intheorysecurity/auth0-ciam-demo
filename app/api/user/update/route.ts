@@ -69,7 +69,9 @@ export async function PATCH(request: NextRequest) {
     null
 
   if (acr !== REQUIRED_ACR) {
-    const reauthUrl = `/api/auth/login?returnTo=/profile&acr_values=${encodeURIComponent(REQUIRED_ACR)}&prompt=login&max_age=0`
+    const lastConn = request.cookies.get('last_auth0_connection')?.value?.trim() || ''
+    const connectionParam = lastConn ? `&connection=${encodeURIComponent(lastConn)}` : ''
+    const reauthUrl = `/api/auth/login?returnTo=/profile&acr_values=${encodeURIComponent(REQUIRED_ACR)}&prompt=login&max_age=0${connectionParam}`
     return NextResponse.json(
       {
         error: 'mfa_required',

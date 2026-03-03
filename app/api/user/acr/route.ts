@@ -39,10 +39,13 @@ export async function GET(request: NextRequest) {
 
   const ok = acr === REQUIRED_ACR
 
+  const lastConn = request.cookies.get('last_auth0_connection')?.value?.trim() || ''
+  const connectionParam = lastConn ? `&connection=${encodeURIComponent(lastConn)}` : ''
+
   const reauthUrl =
     ok
       ? null
-      : `/api/auth/login?returnTo=/profile&acr_values=${encodeURIComponent(REQUIRED_ACR)}&prompt=login&max_age=0`
+      : `/api/auth/login?returnTo=/profile&acr_values=${encodeURIComponent(REQUIRED_ACR)}&prompt=login&max_age=0${connectionParam}`
 
   return NextResponse.json(
     {
